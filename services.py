@@ -34,6 +34,7 @@ from .models import (
     CreateTunnelRequest,
     CreateTunnelResponse,
     ExtensionSettings,
+    PublicTopupRequest,
 )
 
 async def get_settings(user_id: str) -> ExtensionSettings:
@@ -559,17 +560,30 @@ def _remove_authorized_key(settings: ExtensionSettings, proxy: Proxies) -> None:
 
 async def payment_request_for_payments(
     proxies_id: str,
-    data: CreatePayments,
+    data: CreatePayments | PublicTopupRequest,
 ) -> PaymentsPaymentRequest:
     proxies = await get_proxies_by_id(proxies_id)
     if not proxies:
         raise ValueError("Invalid proxies ID.")
 
-    payments = await create_payments(proxies_id, data)
+    settings = await get_settings(proxies.user_id)
 
-    amount = getattr(payments, "amount", 0)
+    # derive amount from days when provided
+    amount = getattr(data, "amount", 0)
+    if hasattr(data, "days"):
+        amount = getattr(data, "days", 0) * settings.price_per_day_sats
     if not amount or amount <= 0:
         raise ValueError("The amount must be greater than zero to create a payment request.")
+
+    payments = await create_payments(
+        proxies_id,
+        CreatePayments(
+            tunnel_id=proxies_id,
+            invoice_id="",
+            amount=amount,
+            paid=False,
+        ),
+    )
 
     proxies_name = getattr(proxies, "", "Unknown")
     payment: Payment = await create_invoice(

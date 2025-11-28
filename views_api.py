@@ -29,6 +29,7 @@ from .models import (
     Payments,
     PaymentsFilters,
     PaymentsPaymentRequest,
+    PublicTopupRequest,
     CreatePayments,
     CreateProxies,
     Proxies,
@@ -200,11 +201,11 @@ async def api_create_payments(
 )
 async def api_submit_public_payments(
     proxies_id: str,
-    data: CreatePayments,
+    data: PublicTopupRequest,
 ) -> PaymentsPaymentRequest | None:
     """
     PUBLIC: clients can use this to top up / extend an existing proxy.
-    `data.amount` is in sats and is converted to an invoice.
+    Uses days to compute the amount server-side.
     """
     return await payment_request_for_payments(proxies_id, data)
 

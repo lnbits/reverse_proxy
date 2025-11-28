@@ -101,6 +101,10 @@ class PaymentsPaymentRequest(BaseModel):
     payment_request: str | None = None
 
 
+class PublicTopupRequest(BaseModel):
+    days: int = Field(gt=0)
+
+
 
 
 class PaymentsFilters(FilterModel):
