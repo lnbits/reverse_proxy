@@ -17,6 +17,7 @@ async def m002_proxies(db):
             expires_at TIMESTAMP NOT NULL,
             status TEXT NOT NULL,
             public_id TEXT NOT NULL,
+            client_note TEXT,
             created_at TIMESTAMP NOT NULL DEFAULT {db.timestamp_now},
             updated_at TIMESTAMP NOT NULL DEFAULT {db.timestamp_now}
         );

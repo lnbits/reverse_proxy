@@ -337,6 +337,7 @@ async def create_tunnel_with_invoice(
         "ssh_host": settings.ssh_host,
         "domain": settings.domain,
         "public_id": req.public_id,
+        "client_note": req.client_note or "",
         "pubkey": public_key,
     }
 
@@ -365,6 +366,7 @@ async def create_tunnel_with_invoice(
         expires_at=expires_at,
         payment_hash=payment.payment_hash,
         payment_request=payment.bolt11,
+        client_note=req.client_note or "",
     )
 
 
@@ -462,6 +464,7 @@ async def _process_payment_with_setup(payment: Payment, setup: dict) -> bool:
                 expires_at=expires_at,
                 status="pending",
                 public_id=public_id,
+                client_note=setup.get("client_note", ""),
             ),
             proxies_id=proxy_id,
         )

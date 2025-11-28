@@ -1,4 +1,4 @@
-# reverse_proxy
+# Reverse Proxy Extension
 
 ## Private LNbits Inc extension for offering paid reverse proxies
 
@@ -16,7 +16,7 @@ And add:
   email ben@lnbits.com
 }
 
-lnpro.xyz {
+lnbits.lnpro.xyz {
   reverse_proxy 127.0.0.1:5000
 }
 
@@ -26,3 +26,5 @@ import /etc/caddy/tunnels.caddy
 Create the Caddyfile we will add routes to:
 
 `touch /etc/caddy/tunnels.caddy`
+
+`sudo systemctl reload caddy`

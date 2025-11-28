@@ -95,6 +95,19 @@ async def get_proxies_by_id(
     )
 
 
+async def get_proxies_by_client_note(
+    client_note: str,
+) -> list[Proxies]:
+    return await db.fetchall(
+        """
+            SELECT * FROM reverse_proxy.proxies
+            WHERE client_note = :client_note
+        """,
+        {"client_note": client_note},
+        Proxies,
+    )
+
+
 async def get_proxies_ids_by_user(
     user_id: str,
 ) -> list[str]:

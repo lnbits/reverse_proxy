@@ -19,6 +19,7 @@ from .crud import (
     get_payments_by_id,
     get_payments_paginated,
     get_proxies,
+    get_proxies_by_client_note,
     get_proxies_ids_by_user,
     get_proxies_paginated,
     update_payments,
@@ -30,6 +31,7 @@ from .models import (
     PaymentsFilters,
     PaymentsPaymentRequest,
     PublicTopupRequest,
+    PublicTunnel,
     CreatePayments,
     CreateProxies,
     Proxies,
@@ -208,6 +210,36 @@ async def api_submit_public_payments(
     Uses days to compute the amount server-side.
     """
     return await payment_request_for_payments(proxies_id, data)
+
+
+@reverse_proxy_api_router.get(
+    "/api/v1/tunnels/client/{client_note}",
+    name="Get tunnels by client note",
+    summary="Public: List tunnels matching a client_note.",
+    response_model=list[PublicTunnel],
+)
+async def api_get_tunnels_by_client_note(client_note: str) -> list[PublicTunnel]:
+    proxies = await get_proxies_by_client_note(client_note)
+    result: list[PublicTunnel] = []
+    for proxy in proxies:
+        settings = await get_extension_settings_public(proxy.public_id)
+        domain = getattr(settings, "domain", "")
+        ssh_host = getattr(settings, "ssh_host", "")
+        public_url = f"https://{proxy.subdomain}.{domain}" if domain else ""
+        result.append(
+            PublicTunnel(
+                tunnel_id=proxy.id,
+                subdomain=proxy.subdomain,
+                remote_port=proxy.remote_port,
+                ssh_user=proxy.ssh_user,
+                ssh_host=ssh_host,
+                public_url=public_url,
+                expires_at=proxy.expires_at,
+                status=proxy.status,
+                client_note=proxy.client_note,
+            )
+        )
+    return result
 
 
 @reverse_proxy_api_router.put(

@@ -34,6 +34,7 @@ class CreateProxies(BaseModel):
     expires_at: datetime
     status: str
     public_id: str
+    client_note: str | None = None
     
 
 
@@ -46,6 +47,7 @@ class Proxies(BaseModel):
     expires_at: datetime
     status: str
     public_id: str
+    client_note: str | None = None
     
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -53,7 +55,7 @@ class Proxies(BaseModel):
 
 class ProxiesFilters(FilterModel):
     __search_fields__ = [
-        "subdomain","remote_port","ssh_user","expires_at","status","public_id",
+        "subdomain","remote_port","ssh_user","expires_at","status","public_id","client_note",
     ]
 
     __sort_fields__ = [
@@ -63,6 +65,7 @@ class ProxiesFilters(FilterModel):
         "expires_at",
         "status",
         "public_id",
+        "client_note",
         
         "created_at",
         "updated_at",
@@ -130,6 +133,7 @@ class PaymentsFilters(FilterModel):
 class CreateTunnelRequest(BaseModel):
     public_id: str
     days: int = Field(gt=0)
+    client_note: str | None = None
 
 
 class CreateTunnelResponse(BaseModel):
@@ -144,3 +148,20 @@ class CreateTunnelResponse(BaseModel):
     expires_at: datetime
     payment_hash: str
     payment_request: str
+    client_note: str | None = None
+
+
+class PublicTopupRequest(BaseModel):
+    days: int = Field(gt=0)
+
+
+class PublicTunnel(BaseModel):
+    tunnel_id: str
+    subdomain: str
+    remote_port: int
+    ssh_user: str
+    ssh_host: str
+    public_url: str
+    expires_at: datetime
+    status: str
+    client_note: str | None = None
