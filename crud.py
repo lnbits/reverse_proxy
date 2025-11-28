@@ -20,8 +20,9 @@ db = Database("ext_reverse_proxy")
 
 ############################ Settings #############################
 async def create_extension_settings(user_id: str, data: ExtensionSettings) -> ExtensionSettings:
-    settings = UserExtensionSettings(**data.dict(), id=user_id, public_id=urlsafe_short_hash())
-    await db.insert("wallet.extension_settings", settings)
+    settings = UserExtensionSettings(**data.dict(), id=user_id)
+    settings.public_id=urlsafe_short_hash()
+    await db.insert("reverse_proxy.extension_settings", settings)
     return settings
 
 
@@ -30,7 +31,7 @@ async def get_extension_settings(
 ) -> ExtensionSettings | None:
     return await db.fetchone(
         """
-            SELECT * FROM wallet.extension_settings
+            SELECT * FROM reverse_proxy.extension_settings
             WHERE id = :user_id
         """,
         {"user_id": user_id},
@@ -39,25 +40,30 @@ async def get_extension_settings(
 
 async def get_extension_settings_public(
     public_id: str,
-) -> ExtensionSettings | None:
+) -> UserExtensionSettings | None:
     return await db.fetchone(
         """
-            SELECT * FROM wallet.extension_settings
-            WHERE id = :public_id
+            SELECT * FROM reverse_proxy.extension_settings
+            WHERE public_id = :public_id
         """,
         {"public_id": public_id},
-        ExtensionSettings,
+        UserExtensionSettings,
     )
 
 async def update_extension_settings(user_id: str, data: ExtensionSettings) -> ExtensionSettings:
     settings = UserExtensionSettings(**data.dict(), id=user_id)
-    await db.update("wallet.extension_settings", settings)
+    await db.update("reverse_proxy.extension_settings", settings)
     return settings
 
 
 ########################### Proxies ############################
-async def create_proxies(user_id: str, data: CreateProxies) -> Proxies:
-    proxies = Proxies(**data.dict(), id=urlsafe_short_hash(), user_id=user_id)
+async def create_proxies(
+    user_id: str,
+    data: CreateProxies,
+    proxies_id: str | None = None,
+) -> Proxies:
+    proxy_id = proxies_id or urlsafe_short_hash()
+    proxies = Proxies(**data.dict(), id=proxy_id, user_id=user_id)
     await db.insert("reverse_proxy.proxies", proxies)
     return proxies
 
@@ -140,8 +146,13 @@ async def delete_proxies(user_id: str, proxies_id: str) -> None:
 ################################# Payments ###########################
 
 
-async def create_payments(proxies_id: str, data: CreatePayments) -> Payments:
-    payments = Payments(**data.dict(), id=urlsafe_short_hash(), proxies_id=proxies_id)
+async def create_payments(
+    proxies_id: str,
+    data: CreatePayments,
+    payments_id: str | None = None,
+) -> Payments:
+    new_payments_id = payments_id or urlsafe_short_hash()
+    payments = Payments(**data.dict(), id=new_payments_id, proxies_id=proxies_id)
     await db.insert("reverse_proxy.payments", payments)
     return payments
 
@@ -214,5 +225,3 @@ async def delete_payments(proxies_id: str, payments_id: str) -> None:
         """,
         {"id": payments_id, "proxies_id": proxies_id},
     )
-
-

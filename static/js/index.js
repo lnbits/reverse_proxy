@@ -7,13 +7,21 @@ window.app = Vue.createApp({
       currencyOptions: ['sat'],
       settingsFormDialog: {
         show: false,
-        data: {}
+        data: {
+          wallet: null,
+          domain: 'lnbitsproxy.com',
+          ssh_user: 'tunneluser',
+          ssh_host: 'lnbitsproxy.com',
+          caddy_tunnels_file: '/etc/caddy/tunnels.caddy',
+          remote_port_min: 12000,
+          remote_port_max: 13000,
+          price_per_day_sats: 100
+        }
       },
 
       proxiesFormDialog: {
         show: false,
         data: {
-          customer_label: null,
           subdomain: null,
           expires_at: null,
           wallet: null,
@@ -25,7 +33,6 @@ window.app = Vue.createApp({
         search: '',
         loading: false,
         columns: [
-          {"name": "customer_label", "align": "left", "label": "Name", "field": "customer_label", "sortable": true},
           {"name": "subdomain", "align": "left", "label": "Subdomain", "field": "subdomain", "sortable": true},
           {"name": "remote_port", "align": "left", "label": "Port", "field": "remote_port", "sortable": true},
           {"name": "ssh_user", "align": "left", "label": "Default tunneluser", "field": "ssh_user", "sortable": true},
@@ -43,10 +50,6 @@ window.app = Vue.createApp({
           descending: true,
           rowsNumber: 10
         }
-      },
-      settingsFormDialog: {
-        show: false,
-        data: {}
       },
       paymentsFormDialog: {
         show: false,
@@ -115,7 +118,7 @@ window.app = Vue.createApp({
 
         await LNbits.api.request(
           'PUT',
-          '/wallet/api/v1/settings',
+          '/reverse_proxy/api/v1/settings',
           null,
           data
         )
@@ -129,12 +132,12 @@ window.app = Vue.createApp({
       try {
         const {data} = await LNbits.api.request(
           'GET',
-          '/wallet/api/v1/settings',
+          '/reverse_proxy/api/v1/settings',
           null
         )
         this.settingsFormDialog.data = data
       } catch (error) {
-        LNbits.utils.notifyApiError(error)
+       // LNbits.utils.notifyApiError(error)
       }
     },
     async showSettingsDataForm() {
@@ -144,7 +147,6 @@ window.app = Vue.createApp({
     //////////////// Proxies ////////////////////////
     async showNewProxiesForm() {
       this.proxiesFormDialog.data = {
-          customer_label: null,
           subdomain: null,
           expires_at: null,
           wallet: null,

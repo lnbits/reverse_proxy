@@ -9,17 +9,6 @@
         "editable": true,
         "fields": [
             {
-                "name": "customer_label",
-                "type": "str",
-                "label": "Name",
-                "hint": "just an identifier",
-                "optional": false,
-                "editable": true,
-                "searchable": true,
-                "sortable": true,
-                "fields": []
-            },
-            {
                 "name": "subdomain",
                 "type": "text",
                 "label": "Subdomain",

@@ -22,7 +22,8 @@ from .crud import (
     get_proxies_ids_by_user,
     get_proxies_paginated,
     update_payments,
-    update_proxies
+    update_proxies,
+    get_extension_settings_public
 )
 from .models import (
     Payments,
@@ -41,6 +42,7 @@ from .services import (
     create_tunnel_with_invoice,
     get_settings,
     update_settings,
+    delete_proxy_and_key,
 )
 
 proxies_filters = parse_filters(ProxiesFilters)
@@ -159,7 +161,8 @@ async def api_delete_proxies(
     clear_payments: bool | None = False,
     user: User = Depends(check_user_exists),
 ) -> SimpleStatus:
-    await delete_proxies(user.id, proxies_id)
+    settings = await get_settings(user.id)
+    await delete_proxy_and_key(user.id, proxies_id, settings)
     if clear_payments is True:
         # TODO: optionally delete all payments associated with this proxy
         pass
@@ -310,29 +313,12 @@ async def api_delete_payments(
 async def api_create_tunnel_public(
     data: CreateTunnelRequest,
 ) -> CreateTunnelResponse:
-    """
-    PUBLIC endpoint.
-    Anyone can request a reverse proxy tunnel.
+    the_settings = await get_extension_settings_public(data.public_id)
+    if not the_settings:
+        raise HTTPException(HTTPStatus.NOT_FOUND, "Settings not found.")
 
-    Uses a dedicated service wallet (REVERSE_PROXY_SERVICE_WALLET)
-    to receive sats, and stores the proxy rows under a synthetic
-    owner id ('public').
-
-    Response includes:
-      - ssh_command (for the client to run)
-      - public_url (https://subdomain.domain)
-      - payment_request (BOLT11 invoice)
-    """
-
-    if not SERVICE_WALLET_ID:
-        raise HTTPException(
-            HTTPStatus.INTERNAL_SERVER_ERROR,
-            "Service wallet not configured (REVERSE_PROXY_SERVICE_WALLET).",
-        )
-
-    resp = await create_tunnel_with_invoice(
-        user_id="public",
-        wallet_id=SERVICE_WALLET_ID,
+    return await create_tunnel_with_invoice(
         req=data,
+        settings=the_settings,
+        extra={"tag": "reverse_proxy"},
     )
-    return resp

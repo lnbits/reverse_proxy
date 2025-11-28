@@ -11,7 +11,6 @@ async def m002_proxies(db):
         CREATE TABLE reverse_proxy.proxies (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
-            customer_label TEXT NOT NULL,
             subdomain TEXT NOT NULL,
             remote_port INT NOT NULL,
             ssh_user TEXT NOT NULL,
@@ -53,7 +52,7 @@ async def m004_extension_settings(db):
 
     await db.execute(
         f"""
-        CREATE TABLE wallet.extension_settings (
+        CREATE TABLE reverse_proxy.extension_settings (
             id TEXT NOT NULL,
             public_id TEXT,
             wallet NOT NULL,

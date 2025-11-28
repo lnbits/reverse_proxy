@@ -20,17 +20,14 @@ window_vars(user) }}
     <q-card
       id="settingsCard"
     >
-    <q-btn
-    v-if="settingsFormDialog.data.public_id"
-    @click="copyToClipboard(settingsFormDialog.data.public_id)"
-    >Copy Public ID</q-btn>
+
       <q-card-section
         class=""
       >
         <div class="row">
           <div class="col">
             <span class="text-h5">wallet</span>
-            <q-btn
+                        <q-btn
               @click="showSettingsDataForm()"
               v-if="true"
               unelevated
@@ -40,6 +37,12 @@ window_vars(user) }}
               class="float-right"
             >
             </q-btn>
+                <q-btn
+    v-if="settingsFormDialog.data.public_id"
+    @click="copyText(settingsFormDialog.data.public_id)"
+    class="float-right"
+    >Copy Public ID</q-btn>
+
           </div>
         </div>
       </q-card-section>
@@ -379,15 +382,6 @@ window_vars(user) }}
     >
       <span class="text-h5">Proxies</span>
 
-       
-<q-input
-  filled
-  dense
-  v-model.trim="proxiesFormDialog.data.customer_label"
-  label="Name"
-  hint="just an identifier "
-></q-input>
-  
 <q-input
   filled
   dense

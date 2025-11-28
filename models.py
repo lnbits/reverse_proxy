@@ -28,7 +28,6 @@ class UserExtensionSettings(ExtensionSettings):
 
 ########################### Proxies ############################
 class CreateProxies(BaseModel):
-    customer_label: str
     subdomain: str
     remote_port: int
     ssh_user: str
@@ -41,7 +40,6 @@ class CreateProxies(BaseModel):
 class Proxies(BaseModel):
     id: str
     user_id: str
-    customer_label: str
     subdomain: str
     remote_port: int
     ssh_user: str
@@ -55,11 +53,10 @@ class Proxies(BaseModel):
 
 class ProxiesFilters(FilterModel):
     __search_fields__ = [
-        "customer_label","subdomain","remote_port","ssh_user","expires_at","status","public_id",
+        "subdomain","remote_port","ssh_user","expires_at","status","public_id",
     ]
 
     __sort_fields__ = [
-        "customer_label",
         "subdomain",
         "remote_port",
         "ssh_user",
@@ -127,7 +124,7 @@ class PaymentsFilters(FilterModel):
 ########################### Tunnel Request/Response ############################
 
 class CreateTunnelRequest(BaseModel):
-    customer_label: str
+    public_id: str
     days: int = Field(gt=0)
 
 
@@ -137,9 +134,9 @@ class CreateTunnelResponse(BaseModel):
     remote_port: int
     ssh_user: str
     ssh_host: str
+    ssh_private_key: str | None = None
     ssh_command: str
     public_url: str
     expires_at: datetime
     payment_hash: str
     payment_request: str
-
