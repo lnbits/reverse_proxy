@@ -1,54 +1,54 @@
-> Use any license you like, its your extension.
+# LNbits Inc Proprietary Software Licence Agreement (LNBI-PSL v1.0)
+**Copyright © LNbits Inc. All Rights Reserved.**
 
----
+## 1. Licence Grant
+LNbits Inc (“Licensor”) grants **only LNbits Inc**, and no other individual or entity, a non-transferable, non-exclusive licence to use this software and its associated files (“Software”) for any lawful internal or commercial purpose.
 
-# DON'T BE A DICK PUBLIC LICENSE
+**No person or entity other than LNbits Inc is granted any rights under this Agreement.**
 
-> Version 1.1, December 2016
+## 2. Prohibited Use
+Except for LNbits Inc, **no individual or entity** may, without the prior **express written consent** of LNbits Inc:
 
-> Copyright (C) 2024 Alan Bits
+- use, run, execute, or operate the Software;
+- copy, reproduce, or distribute the Software, in whole or in part;
+- modify, adapt, translate, or create derivative works of the Software;
+- reverse-engineer, decompile, disassemble, or attempt to extract source code from the Software;
+- make the Software available to third parties in any form;
+- incorporate any portion of the Software into any other product or service;
+- host, mirror, or publish the Software.
 
-Everyone is permitted to copy and distribute verbatim or modified
-copies of this license document.
+Any activity described above by anyone other than LNbits Inc constitutes **unauthorised use**.
 
-> DON'T BE A DICK PUBLIC LICENSE
-> TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+## 3. Automatic Termination
+Any attempted use, copying, modification, distribution, hosting, or execution of the Software by any party other than LNbits Inc causes this Agreement to **automatically and immediately terminate**, and such party shall be deemed to have used the Software **without licence** from the beginning.
 
-1. Do whatever you like with the original work, just don't be a dick.
+## 4. Remedies for Unauthorised Use
+Any unauthorised use of the Software constitutes:
 
-   Being a dick includes - but is not limited to - the following instances:
+- **copyright infringement**,
+- **breach of contract**,
+- **misappropriation of proprietary information**, and
+- **unlawful interference** with LNbits Inc’s commercial rights.
 
- 1a. Outright copyright infringement - Don't just copy this and change the name.
- 1b. Selling the unmodified original with no work done what-so-ever, that's REALLY being a dick.
- 1c. Modifying the original work to contain hidden harmful content. That would make you a PROPER dick.
+LNbits Inc may pursue **all available legal and equitable remedies**, including:
 
-2. If you become rich through modifications, related works/services, or supporting the original work,
-share the love. Only a dick would make loads off this work and not buy the original work's
-creator(s) a pint.
+- civil damages (including statutory damages where available),
+- injunctive relief,
+- recovery of all legal fees and court costs,
+- destruction of infringing copies,
+- recovery of any profits derived from the unauthorised use.
 
-3. Code is provided with no warranty. Using somebody else's code and bitching when it goes wrong makes
-you a DONKEY dick. Fix the problem yourself. A non-dick would submit the fix back.
+Unauthorised users acknowledge that such use constitutes **wilful and knowing infringement**.
 
----
+## 5. No Warranty
+The Software is provided “AS IS” without warranty of any kind.  
+LNbits Inc makes no representation or warranty regarding performance, suitability, or fitness for purpose.
 
-# MIT License
+## 6. Governing Law
+This Agreement is governed by and interpreted under:
 
-> Copyright (c) 2024 Alan Bits
+- the laws of the United Kingdom (for UK users),
+- the laws of the European Union and/or applicable Member State (for EU users),
+- the laws of the State of Delaware and the United States of America (for US users),
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+and elsewhere, the laws most favourable to the enforcement of LNbits Inc’s rights.
