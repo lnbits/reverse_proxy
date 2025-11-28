@@ -53,11 +53,8 @@ async def update_settings(user_id: str, data: ExtensionSettings) -> ExtensionSet
     return settings
 
 async def _get_used_ports() -> set[int]:
-    rows = await db.fetchall(
-        "SELECT remote_port FROM reverse_proxy.proxies",
-        model=Proxies,
-    )
-    return {int(r.remote_port) for r in rows}
+    rows = await db.fetchall("SELECT remote_port FROM reverse_proxy.proxies")
+    return {int(r["remote_port"]) for r in rows}
 
 
 async def allocate_remote_port(
@@ -75,8 +72,104 @@ async def allocate_remote_port(
             return port
 
 
-def random_subdomain(length: int = 8) -> str:
-    return "".join(random.choices(string.ascii_lowercase + string.digits, k=length))
+_SUBJECTS = [
+    "otter",
+    "panda",
+    "lynx",
+    "koala",
+    "badger",
+    "gecko",
+    "orca",
+    "fox",
+    "sparrow",
+    "lemur",
+    "corgi",
+    "yak",
+    "heron",
+    "marten",
+    "mole",
+    "shrike",
+    "swift",
+    "toad",
+    "tern",
+    "eel",
+    "bunny",
+    "lark",
+    "finch",
+    "stoat",
+    "dingo",
+    "quail",
+    "minnow",
+    "crane",
+    "civet",
+    "cubby",
+    "sable",
+    "copper",
+    "drake",
+    "ferret",
+    "ibis",
+    "jay",
+    "kudu",
+    "loon",
+    "manx",
+    "newt",
+    "pika",
+    "skink",
+    "vole",
+    "wren",
+]
+
+_MOODS = [
+    "brisk",
+    "brave",
+    "calm",
+    "bright",
+    "daring",
+    "eager",
+    "fluent",
+    "gentle",
+    "happy",
+    "humble",
+    "keen",
+    "lucky",
+    "merry",
+    "nifty",
+    "plucky",
+    "quick",
+    "spry",
+    "sunny",
+    "tidy",
+    "witty",
+    "breezy",
+    "cheery",
+    "dapper",
+    "eager",
+    "fair",
+    "glad",
+    "jolly",
+    "light",
+    "mild",
+    "nimble",
+    "peppy",
+    "rapid",
+    "ready",
+    "sharp",
+    "spry",
+    "steady",
+    "swell",
+    "trim",
+    "zesty",
+    "zippy",
+]
+
+
+def random_subdomain() -> str:
+    """
+    Human-readable subdomain with enough entropy:
+    <mood><animal><4 digits>.
+    """
+    number = f"{random.randint(0, 9999):04d}"
+    return f"{random.choice(_MOODS)}{random.choice(_SUBJECTS)}{number}"
 
 
 def generate_ssh_keypair(comment: str) -> tuple[str, str]:
