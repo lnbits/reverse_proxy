@@ -16,6 +16,9 @@ from .crud import (
     get_proxies_by_id,
     update_payments,
     update_proxies,
+    get_extension_settings,
+    create_extension_settings,
+    update_extension_settings,
     db,
 )
 from .models import (
@@ -25,17 +28,24 @@ from .models import (
     Proxies,
     CreateTunnelRequest,
     CreateTunnelResponse,
+    ExtensionSettings,
 )
 
-# Config – override via env if you like
-DOMAIN = os.getenv("REVERSE_PROXY_DOMAIN", "satsy.co")
-SSH_USER = os.getenv("REVERSE_PROXY_SSH_USER", "tunneluser")
-SSH_HOST = os.getenv("REVERSE_PROXY_SSH_HOST", DOMAIN)
-CADDY_TUNNELS_FILE = os.getenv("REVERSE_PROXY_CADDY_FILE", "/etc/caddy/tunnels.caddy")
-REMOTE_PORT_MIN = int(os.getenv("REVERSE_PROXY_PORT_MIN", "12000"))
-REMOTE_PORT_MAX = int(os.getenv("REVERSE_PROXY_PORT_MAX", "13000"))
-PRICE_PER_DAY_SATS = int(os.getenv("REVERSE_PROXY_PRICE_PER_DAY", "100"))
+async def get_settings(user_id: str) -> ExtensionSettings:
+    settings = await get_extension_settings(user_id)
+    if not settings:
+        settings = await create_extension_settings(user_id, ExtensionSettings())
+    return settings
 
+
+async def update_settings(user_id: str, data: ExtensionSettings) -> ExtensionSettings:
+    settings = await get_extension_settings(user_id)
+    if not settings:
+        settings = await create_extension_settings(user_id, data)
+    else:
+        settings = await update_extension_settings(user_id, data)
+
+    return settings
 
 async def _get_used_ports() -> set[int]:
     rows = await db.fetchall(

@@ -3,6 +3,28 @@ from datetime import datetime, timezone
 from lnbits.db import FilterModel
 from pydantic import BaseModel, Field
 
+############################ Settings #############################
+
+class ExtensionSettings(BaseModel):
+    wallet: str
+    public_id: str | None
+    domain: str = "lnbitsproxy.com"
+    ssh_user: str = "tunneluser"
+    ssh_host: str = "lnbitsproxy.com"
+    caddy_tunnels_file: str = "/etc/caddy/tunnels.caddy"
+    remote_port_min: int = 12000
+    remote_port_max: int = 13000
+    price_per_day_sats: int = 100
+
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @classmethod
+    def is_admin_only(cls) -> bool:
+        return bool("False" == "True")
+
+
+class UserExtensionSettings(ExtensionSettings):
+    id: str
 
 ########################### Proxies ############################
 class CreateProxies(BaseModel):
@@ -12,7 +34,7 @@ class CreateProxies(BaseModel):
     ssh_user: str
     expires_at: datetime
     status: str
-    wallet: str
+    public_id: str
     
 
 
@@ -25,7 +47,7 @@ class Proxies(BaseModel):
     ssh_user: str
     expires_at: datetime
     status: str
-    wallet: str
+    public_id: str
     
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -33,7 +55,7 @@ class Proxies(BaseModel):
 
 class ProxiesFilters(FilterModel):
     __search_fields__ = [
-        "customer_label","subdomain","remote_port","ssh_user","expires_at","status","wallet",
+        "customer_label","subdomain","remote_port","ssh_user","expires_at","status","public_id",
     ]
 
     __sort_fields__ = [
@@ -43,7 +65,7 @@ class ProxiesFilters(FilterModel):
         "ssh_user",
         "expires_at",
         "status",
-        "wallet",
+        "public_id",
         
         "created_at",
         "updated_at",
@@ -105,8 +127,8 @@ class PaymentsFilters(FilterModel):
 ########################### Tunnel Request/Response ############################
 
 class CreateTunnelRequest(BaseModel):
-    customer_label: str          # whatever identifier: “Ben home node”, pubkey, etc.
-    days: int = Field(gt=0)      # how many days to buy
+    customer_label: str
+    days: int = Field(gt=0)
 
 
 class CreateTunnelResponse(BaseModel):
@@ -120,3 +142,4 @@ class CreateTunnelResponse(BaseModel):
     expires_at: datetime
     payment_hash: str
     payment_request: str
+

@@ -1,3 +1,4 @@
+import os
 from http import HTTPStatus
 
 from fastapi import APIRouter, Depends
@@ -21,7 +22,7 @@ from .crud import (
     get_proxies_ids_by_user,
     get_proxies_paginated,
     update_payments,
-    update_proxies,
+    update_proxies
 )
 from .models import (
     Payments,
@@ -33,13 +34,14 @@ from .models import (
     ProxiesFilters,
     CreateTunnelRequest,
     CreateTunnelResponse,
+    ExtensionSettings,
 )
 from .services import (
     payment_request_for_payments,
     create_tunnel_with_invoice,
+    get_settings,
+    update_settings,
 )
-
-
 
 proxies_filters = parse_filters(ProxiesFilters)
 payments_filters = parse_filters(PaymentsFilters)
@@ -47,7 +49,42 @@ payments_filters = parse_filters(PaymentsFilters)
 reverse_proxy_api_router = APIRouter()
 
 
-############################# Proxies #############################
+############################ Settings #############################
+@reverse_proxy_api_router.get(
+    "/api/v1/settings",
+    name="Get Settings",
+    summary="Get the settings for the current user.",
+    response_description="The settings or 404 if not found",
+    response_model=ExtensionSettings,
+)
+async def api_get_settings(
+    user: User = Depends(check_user_exists),
+) -> ExtensionSettings:
+    user_id = "admin" if ExtensionSettings.is_admin_only() else user.id
+    return await get_settings(user_id)
+
+
+@reverse_proxy_api_router.put(
+    "/api/v1/settings",
+    name="Update Settings",
+    summary="Update the settings for the current user.",
+    response_description="The updated settings.",
+    response_model=ExtensionSettings,
+)
+async def api_update_extension_settings(
+    data: ExtensionSettings,
+    user: User = Depends(check_user_exists),
+) -> ExtensionSettings:
+    if ExtensionSettings.is_admin_only() and not user.admin:
+        raise HTTPException(
+            HTTPStatus.FORBIDDEN,
+            "Only admins can update settings.",
+        )
+    user_id = "admin" if ExtensionSettings.is_admin_only() else user.id
+    return await update_settings(user_id, data)
+
+
+############################# Proxies (internal) #############################
 @reverse_proxy_api_router.post("/api/v1/proxies", status_code=HTTPStatus.CREATED)
 async def api_create_proxies(
     data: CreateProxies,
@@ -57,7 +94,10 @@ async def api_create_proxies(
     return proxies
 
 
-@reverse_proxy_api_router.put("/api/v1/proxies/{proxies_id}", status_code=HTTPStatus.CREATED)
+@reverse_proxy_api_router.put(
+    "/api/v1/proxies/{proxies_id}",
+    status_code=HTTPStatus.CREATED,
+)
 async def api_update_proxies(
     proxies_id: str,
     data: CreateProxies,
@@ -84,7 +124,6 @@ async def api_get_proxies_paginated(
     user: User = Depends(check_user_exists),
     filters: Filters = Depends(proxies_filters),
 ) -> Page[Proxies]:
-
     return await get_proxies_paginated(
         user_id=user.id,
         filters=filters,
@@ -95,25 +134,23 @@ async def api_get_proxies_paginated(
     "/api/v1/proxies/{proxies_id}",
     name="Get Proxies",
     summary="Get the proxies with this id.",
-    response_description="An proxies or 404 if not found",
+    response_description="A proxies row or 404 if not found",
     response_model=Proxies,
 )
 async def api_get_proxies(
     proxies_id: str,
     user: User = Depends(check_user_exists),
 ) -> Proxies:
-
     proxies = await get_proxies(user.id, proxies_id)
     if not proxies:
         raise HTTPException(HTTPStatus.NOT_FOUND, "Proxies not found.")
-
     return proxies
 
 
 @reverse_proxy_api_router.delete(
     "/api/v1/proxies/{proxies_id}",
     name="Delete Proxies",
-    summary="Delete the proxies " "and optionally all its associated payments.",
+    summary="Delete the proxies and optionally all its associated payments.",
     response_description="The status of the deletion.",
     response_model=SimpleStatus,
 )
@@ -122,10 +159,9 @@ async def api_delete_proxies(
     clear_payments: bool | None = False,
     user: User = Depends(check_user_exists),
 ) -> SimpleStatus:
-
     await delete_proxies(user.id, proxies_id)
     if clear_payments is True:
-        # await delete all payments associated with this proxies
+        # TODO: optionally delete all payments associated with this proxy
         pass
     return SimpleStatus(success=True, message="Proxies Deleted")
 
@@ -155,18 +191,19 @@ async def api_create_payments(
 @reverse_proxy_api_router.put(
     "/api/v1/payments/public/{proxies_id}",
     name="Submit new Payments",
-    summary="Submit new payments for the specified proxies." "This is a public endpoint.",
-    response_description="The created payments.",
+    summary="Public: Generate a new payment request (LN invoice) for the specified proxy.",
+    response_description="The created payment request.",
     response_model=PaymentsPaymentRequest | None,
 )
 async def api_submit_public_payments(
     proxies_id: str,
     data: CreatePayments,
 ) -> PaymentsPaymentRequest | None:
-
+    """
+    PUBLIC: clients can use this to top up / extend an existing proxy.
+    `data.amount` is in sats and is converted to an invoice.
+    """
     return await payment_request_for_payments(proxies_id, data)
-
-
 
 
 @reverse_proxy_api_router.put(
@@ -206,7 +243,6 @@ async def api_get_payments_paginated(
     proxies_id: str | None = None,
     filters: Filters = Depends(payments_filters),
 ) -> Page[Payments]:
-
     proxies_ids = await get_proxies_ids_by_user(user.id)
 
     if proxies_id:
@@ -224,21 +260,19 @@ async def api_get_payments_paginated(
     "/api/v1/payments/{payments_id}",
     name="Get Payments",
     summary="Get the payments with this id.",
-    response_description="An payments or 404 if not found",
+    response_description="A payments row or 404 if not found",
     response_model=Payments,
 )
 async def api_get_payments(
     payments_id: str,
     user: User = Depends(check_user_exists),
 ) -> Payments:
-
     payments = await get_payments_by_id(payments_id)
     if not payments:
         raise HTTPException(HTTPStatus.NOT_FOUND, "Payments not found.")
     proxies = await get_proxies(user.id, payments.proxies_id)
     if not proxies:
         raise HTTPException(HTTPStatus.NOT_FOUND, "Proxies deleted for this Payments.")
-
     return payments
 
 
@@ -253,7 +287,6 @@ async def api_delete_payments(
     payments_id: str,
     user: User = Depends(check_user_exists),
 ) -> SimpleStatus:
-
     payments = await get_payments_by_id(payments_id)
     if not payments:
         raise HTTPException(HTTPStatus.NOT_FOUND, "Payments not found.")
@@ -270,34 +303,36 @@ async def api_delete_payments(
 @reverse_proxy_api_router.post(
     "/api/v1/tunnels",
     name="Create tunnel + invoice",
-    summary="Request a reverse proxy for X days; returns LN invoice and tunnel details.",
+    summary="Public: Request a reverse proxy for X days; returns LN invoice and tunnel details.",
     response_model=CreateTunnelResponse,
     status_code=HTTPStatus.CREATED,
 )
-async def api_create_tunnel(
+async def api_create_tunnel_public(
     data: CreateTunnelRequest,
-    user: User = Depends(check_user_exists),
 ) -> CreateTunnelResponse:
     """
-    This endpoint is meant for *your* use only (provider side).
-    You can later mirror it via a simple public API if you want external clients
-    to not need LNbits users.
-    For now it:
-      - uses `user.wallets[0].id` as the wallet to receive sats
-      - creates a proxies row
-      - creates a payments row
-      - creates an invoice
-      - returns ssh_command + public_url + payment_request
+    PUBLIC endpoint.
+    Anyone can request a reverse proxy tunnel.
+
+    Uses a dedicated service wallet (REVERSE_PROXY_SERVICE_WALLET)
+    to receive sats, and stores the proxy rows under a synthetic
+    owner id ('public').
+
+    Response includes:
+      - ssh_command (for the client to run)
+      - public_url (https://subdomain.domain)
+      - payment_request (BOLT11 invoice)
     """
 
-    # pick a wallet – in a real setup you might configure a dedicated service wallet
-    if not user.wallets:
-        raise HTTPException(HTTPStatus.BAD_REQUEST, "User has no wallet configured.")
-    wallet_id = user.wallets[0].id
+    if not SERVICE_WALLET_ID:
+        raise HTTPException(
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+            "Service wallet not configured (REVERSE_PROXY_SERVICE_WALLET).",
+        )
 
     resp = await create_tunnel_with_invoice(
-        user_id=user.id,
-        wallet_id=wallet_id,
+        user_id="public",
+        wallet_id=SERVICE_WALLET_ID,
         req=data,
     )
     return resp

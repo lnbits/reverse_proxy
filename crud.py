@@ -11,9 +11,48 @@ from .models import (
     CreateProxies,
     Proxies,
     ProxiesFilters,
+    ExtensionSettings,
+    UserExtensionSettings
 )
 
 db = Database("ext_reverse_proxy")
+
+
+############################ Settings #############################
+async def create_extension_settings(user_id: str, data: ExtensionSettings) -> ExtensionSettings:
+    settings = UserExtensionSettings(**data.dict(), id=user_id, public_id=urlsafe_short_hash())
+    await db.insert("wallet.extension_settings", settings)
+    return settings
+
+
+async def get_extension_settings(
+    user_id: str,
+) -> ExtensionSettings | None:
+    return await db.fetchone(
+        """
+            SELECT * FROM wallet.extension_settings
+            WHERE id = :user_id
+        """,
+        {"user_id": user_id},
+        ExtensionSettings,
+    )
+
+async def get_extension_settings_public(
+    public_id: str,
+) -> ExtensionSettings | None:
+    return await db.fetchone(
+        """
+            SELECT * FROM wallet.extension_settings
+            WHERE id = :public_id
+        """,
+        {"public_id": public_id},
+        ExtensionSettings,
+    )
+
+async def update_extension_settings(user_id: str, data: ExtensionSettings) -> ExtensionSettings:
+    settings = UserExtensionSettings(**data.dict(), id=user_id)
+    await db.update("wallet.extension_settings", settings)
+    return settings
 
 
 ########################### Proxies ############################

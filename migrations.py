@@ -1,11 +1,5 @@
-# the migration file is where you build your database tables
-# If you create a new release for your extension ,
-# remember the migration file is like a blockchain, never edit only add!
 
 empty_dict: dict[str, str] = {}
-
-
-
 
 async def m002_proxies(db):
     """
@@ -23,7 +17,7 @@ async def m002_proxies(db):
             ssh_user TEXT NOT NULL,
             expires_at TIMESTAMP NOT NULL,
             status TEXT NOT NULL,
-            wallet TEXT NOT NULL,
+            public_id TEXT NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT {db.timestamp_now},
             updated_at TIMESTAMP NOT NULL DEFAULT {db.timestamp_now}
         );
@@ -46,6 +40,30 @@ async def m003_payments(db):
             amount INT NOT NULL,
             paid BOOLEAN NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT {db.timestamp_now},
+            updated_at TIMESTAMP NOT NULL DEFAULT {db.timestamp_now}
+        );
+    """
+    )
+
+
+async def m004_extension_settings(db):
+    """
+    Initial settings table.
+    """
+
+    await db.execute(
+        f"""
+        CREATE TABLE wallet.extension_settings (
+            id TEXT NOT NULL,
+            public_id TEXT,
+            wallet NOT NULL,
+            price_per_day_sats INT NOT NULL,
+            domain TEXT NOT NULL,
+            ssh_user TEXT NOT NULL,
+            ssh_host TEXT NOT NULL,
+            caddy_tunnels_file TEXT NOT NULL,
+            remote_port_min INT NOT NULL,
+            remote_port_max INT NOT NULL,
             updated_at TIMESTAMP NOT NULL DEFAULT {db.timestamp_now}
         );
     """

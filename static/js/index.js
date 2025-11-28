@@ -44,7 +44,10 @@ window.app = Vue.createApp({
           rowsNumber: 10
         }
       },
-
+      settingsFormDialog: {
+        show: false,
+        data: {}
+      },
       paymentsFormDialog: {
         show: false,
         proxies: {label: 'All Proxies', value: ''},
@@ -104,7 +107,40 @@ window.app = Vue.createApp({
   },
 
   methods: {
+//////////////// Settings ////////////////////////
+    async updateSettings() {
+      
+      try {
+        const data = {...this.settingsFormDialog.data}
 
+        await LNbits.api.request(
+          'PUT',
+          '/wallet/api/v1/settings',
+          null,
+          data
+        )
+        this.settingsFormDialog.show = false
+      } catch (error) {
+        LNbits.utils.notifyApiError(error)
+      }
+    },
+    async getSettings() {
+      
+      try {
+        const {data} = await LNbits.api.request(
+          'GET',
+          '/wallet/api/v1/settings',
+          null
+        )
+        this.settingsFormDialog.data = data
+      } catch (error) {
+        LNbits.utils.notifyApiError(error)
+      }
+    },
+    async showSettingsDataForm() {
+      await this.getSettings()
+      this.settingsFormDialog.show = true
+    },
     //////////////// Proxies ////////////////////////
     async showNewProxiesForm() {
       this.proxiesFormDialog.data = {
@@ -254,11 +290,9 @@ window.app = Vue.createApp({
   //////LIFECYCLE FUNCTIONS RUNNING ON PAGE LOAD/////
   ///////////////////////////////////////////////////
   async created() {
+    this.getSettings()
     this.fetchCurrencies()
     this.getProxies()
     this.getPayments()
-
-    
-    
   }
 })

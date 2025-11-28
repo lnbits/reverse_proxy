@@ -16,7 +16,34 @@ window_vars(user) }}
 {% endblock %} {% block page %}
 <div class="row q-col-gutter-md">
   <div class="col-12 col-md-8 col-lg-7 q-gutter-y-md">
-    
+        
+    <q-card
+      id="settingsCard"
+    >
+    <q-btn
+    v-if="settingsFormDialog.data.public_id"
+    @click="copyToClipboard(settingsFormDialog.data.public_id)"
+    >Copy Public ID</q-btn>
+      <q-card-section
+        class=""
+      >
+        <div class="row">
+          <div class="col">
+            <span class="text-h5">wallet</span>
+            <q-btn
+              @click="showSettingsDataForm()"
+              v-if="true"
+              unelevated
+              split
+              color="primary"
+              icon="settings"
+              class="float-right"
+            >
+            </q-btn>
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
 
     <div class="q-mt-lg">
       <span class="text-h5">Proxies</span>
@@ -268,7 +295,82 @@ window_vars(user) }}
   <!--/////////////////////////////////////////////////-->
   <!--//////////////FORM DIALOG////////////////////////-->
   <!--/////////////////////////////////////////////////-->
+  <q-dialog v-model="settingsFormDialog.show" position="top">
+    <q-card
+      v-if="settingsFormDialog.show"
+      class="q-pa-lg q-pt-xl lnbits__dialog-card q-col-gutter-md"
+    >
+      <span class="text-h5">Settings</span>
 
+      <q-select
+        filled
+        dense
+        emit-value
+        v-model="settingsFormDialog.data.wallet"
+        :options="g.user.walletOptions"
+        label="Wallet (optional)"
+      ></q-select>
+
+      <q-input
+        filled
+        dense
+        v-model.trim="settingsFormDialog.data.domain"
+        label="Domain"
+      ></q-input>
+
+      <q-input
+        filled
+        dense
+        v-model.trim="settingsFormDialog.data.ssh_user"
+        label="SSH User"
+      ></q-input>
+
+      <q-input
+        filled
+        dense
+        v-model.trim="settingsFormDialog.data.ssh_host"
+        label="SSH Host"
+      ></q-input>
+
+      <q-input
+        filled
+        dense
+        v-model.trim="settingsFormDialog.data.caddy_tunnels_file"
+        label="Caddy Tunnels File"
+      ></q-input>
+
+      <q-input
+        filled
+        dense
+        type="number"
+        v-model.number="settingsFormDialog.data.remote_port_min"
+        label="Remote Port Min"
+      ></q-input>
+
+      <q-input
+        filled
+        dense
+        type="number"
+        v-model.number="settingsFormDialog.data.remote_port_max"
+        label="Remote Port Max"
+      ></q-input>
+
+      <q-input
+        filled
+        dense
+        type="number"
+        v-model.number="settingsFormDialog.data.price_per_day_sats"
+        label="Price Per Day (sats)"
+      ></q-input>
+
+      <div class="row q-mt-lg">
+        <q-btn @click="updateSettings" unelevated color="primary" type="submit"
+          >Update</q-btn
+        >
+        <q-btn v-close-popup flat color="grey" class="q-ml-auto">Cancel</q-btn>
+      </div>
+    </q-card>
+  </q-dialog>
 
   <q-dialog v-model="proxiesFormDialog.show" position="top">
     <q-card
@@ -317,16 +419,7 @@ window_vars(user) }}
     </q-icon>
   </template>
 </q-input>
-  
-<q-select
-  filled
-  dense
-  emit-value
-  v-model="proxiesFormDialog.data.wallet"
-  :options="g.user.walletOptions"
-  label="Wallet  * "
-></q-select>
- 
+
       <div class="row q-mt-lg">
         <q-btn @click="saveProxies" unelevated color="primary">
           <span v-if="proxiesFormDialog.data.id">Update</span>
