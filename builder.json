@@ -1,0 +1,185 @@
+{
+    "id": "reverse_proxy",
+    "name": "reverse_proxy",
+    "stub_version": "v0.2.0",
+    "short_description": "Internal extension for allowing ssh tunnels",
+    "description": "Only to be used by LNbits Inc",
+    "owner_data": {
+        "name": "Proxies",
+        "editable": true,
+        "fields": [
+            {
+                "name": "customer_label",
+                "type": "str",
+                "label": "Name",
+                "hint": "just an identifier",
+                "optional": false,
+                "editable": true,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            },
+            {
+                "name": "subdomain",
+                "type": "text",
+                "label": "Subdomain",
+                "hint": "",
+                "optional": false,
+                "editable": true,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            },
+            {
+                "name": "remote_port",
+                "type": "int",
+                "label": "Port",
+                "hint": "",
+                "optional": false,
+                "editable": false,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            },
+            {
+                "name": "ssh_user",
+                "type": "text",
+                "label": "Default tunneluser",
+                "hint": "",
+                "optional": false,
+                "editable": false,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            },
+            {
+                "name": "expires_at",
+                "type": "datetime",
+                "label": "When tunnel defaults",
+                "hint": "",
+                "optional": false,
+                "editable": true,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            },
+            {
+                "name": "status",
+                "type": "text",
+                "label": "active/expired/paid",
+                "hint": "",
+                "optional": false,
+                "editable": false,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            },
+            {
+                "name": "wallet",
+                "type": "wallet",
+                "label": "Wallet",
+                "hint": "",
+                "optional": false,
+                "editable": true,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            }
+        ]
+    },
+    "client_data": {
+        "name": "Payments",
+        "editable": false,
+        "fields": [
+            {
+                "name": "tunnel_id",
+                "type": "str",
+                "label": "Tunnel ID",
+                "hint": "",
+                "optional": false,
+                "editable": false,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            },
+            {
+                "name": "invoice_id",
+                "type": "text",
+                "label": "Invoice ID",
+                "hint": "",
+                "optional": false,
+                "editable": false,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            },
+            {
+                "name": "amount",
+                "type": "int",
+                "label": "Amount",
+                "hint": "",
+                "optional": false,
+                "editable": false,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            },
+            {
+                "name": "paid",
+                "type": "bool",
+                "label": "Paid",
+                "hint": "",
+                "optional": false,
+                "editable": false,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            }
+        ]
+    },
+    "settings_data": {
+        "name": "Settings",
+        "editable": true,
+        "fields": [
+            {
+                "name": "field_name_1",
+                "type": "text",
+                "label": "",
+                "hint": "",
+                "optional": true,
+                "editable": true,
+                "searchable": true,
+                "sortable": true,
+                "fields": []
+            }
+        ],
+        "enabled": false,
+        "type": "user"
+    },
+    "public_page": {
+        "has_public_page": true,
+        "owner_data_fields": {
+            "name": "",
+            "description": ""
+        },
+        "client_data_fields": {
+            "public_inputs": []
+        },
+        "action_fields": {
+            "generate_action": true,
+            "generate_payment_logic": true,
+            "wallet_id": "wallet",
+            "currency": "",
+            "amount": "amount",
+            "amount_source": "client_data",
+            "paid_flag": "paid"
+        }
+    },
+    "preview_action": {
+        "is_preview_mode": false,
+        "is_settings_preview": false,
+        "is_owner_data_preview": false,
+        "is_client_data_preview": false,
+        "is_public_page_preview": false
+    }
+}
