@@ -340,7 +340,6 @@ async def create_tunnel_with_invoice(
         "client_note": req.client_note or "",
         "pubkey": public_key,
     }
-
     payment: Payment = await create_invoice(
         wallet_id=settings.wallet,
         amount=amount,
@@ -402,8 +401,7 @@ async def payment_received_for_payments(payment: Payment) -> bool:
         logger.warning("reverse_proxy: invalid price_per_day_sats in settings")
         return False
 
-    # amount is sats; PRICE_PER_DAY_SATS sats = 1 day
-    days_to_extend = payment.amount / price_per_day
+    days_to_extend = (payment.amount / 1000) / price_per_day
 
     now = datetime.now(timezone.utc)
     current_expiry = proxy.expires_at or now
@@ -471,7 +469,7 @@ async def _process_payment_with_setup(payment: Payment, setup: dict) -> bool:
     if getattr(proxy, "status", "") != "active":
         proxy.status = "active"
 
-    days_to_extend = payment.amount / price_per_day
+    days_to_extend = (payment.amount / 1000) / price_per_day
     current_expiry = proxy.expires_at or now
     base = current_expiry if current_expiry > now else now
     proxy.expires_at = base + timedelta(days=days_to_extend)
@@ -589,11 +587,11 @@ async def payment_request_for_payments(
     )
 
     proxies_name = getattr(proxies, "", "Unknown")
+    extra = {"tag": "reverse_proxy", "payments_id": payments.id}
     payment: Payment = await create_invoice(
-        wallet_id=getattr(proxies, "wallet", "no_wallet_id"),
+        wallet_id=settings.wallet,
         amount=amount,
-        currency=getattr(proxies, "", "sats"),
-        extra={"tag": "reverse_proxy", "payments_id": payments.id},
+        extra=extra,
         memo=f"Payment for {proxies_name}. Payments ID: {payments.id}",
     )
     payments_resp = PaymentsPaymentRequest(
