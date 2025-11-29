@@ -199,6 +199,7 @@ def ensure_caddy_route(proxy: Proxies, settings: ExtensionSettings) -> None:
     sync function that rewrites the file.
     """
     host = f"{proxy.subdomain}.{settings.domain}"
+    _remove_existing_caddy_block(settings.caddy_tunnels_file, host)
     block = f"""{host} {{
   reverse_proxy 127.0.0.1:{proxy.remote_port}
 }}
@@ -217,6 +218,41 @@ def ensure_caddy_route(proxy: Proxies, settings: ExtensionSettings) -> None:
     except Exception as exc:
         logger.error(f"reverse_proxy: failed to append Caddy route for {host}: {exc}")
         # payment is still valid; tunnel will get picked up on next full sync
+
+
+def _remove_existing_caddy_block(caddy_file: str, host: str) -> None:
+    """
+    Remove any existing block for `host` to avoid duplicate site definitions.
+    """
+    if not os.path.exists(caddy_file):
+        return
+
+    try:
+        with open(caddy_file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        new_lines = []
+        in_block = False
+        removed = False
+        for line in lines:
+            stripped = line.strip()
+            if not in_block and stripped == f"{host} {{":
+                in_block = True
+                removed = True
+                continue
+            if in_block and stripped == "}":
+                in_block = False
+                continue
+            if in_block:
+                continue
+            new_lines.append(line)
+
+        if removed:
+            with open(caddy_file, "w", encoding="utf-8") as f:
+                f.writelines(new_lines)
+            logger.info(f"reverse_proxy: removed duplicate Caddy block for {host}")
+    except Exception as exc:
+        logger.error(f"reverse_proxy: failed to dedupe Caddy block for {host}: {exc}")
 
 
 async def cleanup_expired_proxies_and_sync_caddy(
