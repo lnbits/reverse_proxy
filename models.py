@@ -31,6 +31,7 @@ class CreateProxies(BaseModel):
     subdomain: str
     remote_port: int
     ssh_user: str
+    ssh_public_key: str | None = None
     expires_at: datetime
     status: str
     public_id: str
@@ -44,6 +45,7 @@ class Proxies(BaseModel):
     subdomain: str
     remote_port: int
     ssh_user: str
+    ssh_public_key: str | None = None
     expires_at: datetime
     status: str
     public_id: str

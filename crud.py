@@ -56,6 +56,13 @@ async def update_extension_settings(user_id: str, data: ExtensionSettings) -> Ex
     return settings
 
 
+async def get_all_extension_settings() -> list[UserExtensionSettings]:
+    return await db.fetchall(
+        "SELECT * FROM reverse_proxy.extension_settings",
+        model=UserExtensionSettings,
+    )
+
+
 ########################### Proxies ############################
 async def create_proxies(
     user_id: str,

@@ -68,3 +68,16 @@ async def m004_extension_settings(db):
         );
     """
     )
+
+
+async def m005_add_ssh_public_key(db):
+    """
+    Store the client's SSH public key so it can be re-authorized after grace period.
+    """
+
+    await db.execute(
+        """
+        ALTER TABLE reverse_proxy.proxies
+        ADD COLUMN ssh_public_key TEXT;
+    """
+    )

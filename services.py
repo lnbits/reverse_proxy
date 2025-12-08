@@ -278,6 +278,10 @@ async def cleanup_expired_proxies_and_sync_caddy(
         model=Proxies,
     )
     for proxy in expired:
+        if not proxy.ssh_public_key:
+            captured_key = _extract_authorized_key(settings, proxy)
+            if captured_key:
+                proxy.ssh_public_key = captured_key
         proxy.status = "expired"
         await update_proxies(proxy)
         _remove_authorized_key(settings, proxy)
@@ -308,6 +312,15 @@ async def cleanup_expired_proxies_and_sync_caddy(
         values={"status": "active", "now": now, "user_id": user_id},
         model=Proxies,
     )
+
+    # 2b) Ensure authorized_keys contains entries for active tunnels
+    for proxy in active:
+        if not proxy.ssh_public_key:
+            proxy.ssh_public_key = _extract_authorized_key(settings, proxy)
+            if proxy.ssh_public_key:
+                await update_proxies(proxy)
+        if proxy.ssh_public_key:
+            _add_authorized_key(settings, proxy, proxy.ssh_public_key)
 
     # 3) Rewrite Caddy tunnels file
     try:
@@ -437,6 +450,9 @@ async def payment_received_for_payments(payment: Payment) -> bool:
         logger.warning("reverse_proxy: invalid price_per_day_sats in settings")
         return False
 
+    if not proxy.ssh_public_key:
+        proxy.ssh_public_key = _extract_authorized_key(settings, proxy)
+
     days_to_extend = (payment.amount / 1000) / price_per_day
 
     now = datetime.now(timezone.utc)
@@ -446,6 +462,9 @@ async def payment_received_for_payments(payment: Payment) -> bool:
     proxy.expires_at = base + timedelta(days=days_to_extend)
     proxy.status = "active"
     await update_proxies(proxy)
+
+    if proxy.ssh_public_key:
+        _add_authorized_key(settings, proxy, proxy.ssh_public_key)
 
     payments.paid = True
     await update_payments(payments)
@@ -495,6 +514,7 @@ async def _process_payment_with_setup(payment: Payment, setup: dict) -> bool:
                 subdomain=setup.get("subdomain", random_subdomain()),
                 remote_port=remote_port,
                 ssh_user=setup.get("ssh_user", settings.ssh_user),
+                ssh_public_key=pubkey,
                 expires_at=expires_at,
                 status="pending",
                 public_id=public_id,
@@ -502,6 +522,8 @@ async def _process_payment_with_setup(payment: Payment, setup: dict) -> bool:
             ),
             proxies_id=proxy_id,
         )
+    if pubkey:
+        proxy.ssh_public_key = pubkey
     if getattr(proxy, "status", "") != "active":
         proxy.status = "active"
 
@@ -542,6 +564,31 @@ async def _process_payment_with_setup(payment: Payment, setup: dict) -> bool:
 
 def _authorized_keys_path(settings: ExtensionSettings) -> str:
     return os.path.join("/home", settings.ssh_user, ".ssh", "authorized_keys")
+
+
+def _extract_authorized_key(settings: ExtensionSettings, proxy: Proxies) -> str | None:
+    """
+    Try to read the stored public key for this proxy from authorized_keys.
+    """
+    ak_path = _authorized_keys_path(settings)
+    marker = f"reverse_proxy:{proxy.id}"
+    if not os.path.exists(ak_path):
+        return None
+
+    try:
+        with open(ak_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if marker not in line:
+                    continue
+                parts = line.strip().split()
+                if len(parts) < 3 or parts[-1] != marker:
+                    continue
+                return " ".join(parts[1:-1])
+    except Exception as exc:
+        logger.error(
+            f"reverse_proxy: failed to read authorized_key for {proxy.id}: {exc}"
+        )
+    return None
 
 
 def _add_authorized_key(settings: ExtensionSettings, proxy: Proxies, pubkey: str) -> None:

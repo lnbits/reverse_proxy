@@ -1,10 +1,14 @@
 import asyncio
 
 from lnbits.core.models import Payment
-from lnbits.tasks import register_invoice_listener
+from lnbits.tasks import register_invoice_listener, run_interval
 from loguru import logger
 
-from .services import payment_received_for_payments
+from .crud import get_all_extension_settings
+from .services import (
+    cleanup_expired_proxies_and_sync_caddy,
+    payment_received_for_payments,
+)
 
 
 async def wait_for_paid_invoices():
@@ -26,3 +30,18 @@ async def on_invoice_paid(payment: Payment) -> None:
         await payment_received_for_payments(payment)
     except Exception as e:
         logger.error(f"Error processing payment for reverse_proxy: {e}")
+
+
+async def _cleanup_all_tunnels_once():
+    settings_list = await get_all_extension_settings()
+    for settings in settings_list:
+        try:
+            await cleanup_expired_proxies_and_sync_caddy(settings.id, settings)
+        except Exception as exc:
+            logger.error(
+                f"reverse_proxy: cleanup failed for user {settings.id}: {exc}"
+            )
+
+
+# Runs every hour while the app is running
+cleanup_tunnels_hourly = run_interval(3600, _cleanup_all_tunnels_once)
