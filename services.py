@@ -3,6 +3,7 @@ import random
 import string
 import subprocess
 import tempfile
+import hashlib
 from datetime import datetime, timezone, timedelta
 
 from loguru import logger
@@ -18,6 +19,7 @@ from .crud import (
     delete_proxies,
     get_proxies,
     get_payments_by_id,
+    get_proxies_by_client_note,
     get_proxies_by_id,
     update_payments,
     update_proxies,
@@ -171,6 +173,14 @@ def random_subdomain() -> str:
     """
     number = f"{random.randint(0, 9999):04d}"
     return f"{random.choice(_MOODS)}{random.choice(_SUBJECTS)}{number}"
+
+
+def deterministic_subdomain(client_note: str) -> str:
+    digest = hashlib.sha256(client_note.encode("utf-8")).digest()
+    mood = _MOODS[digest[0] % len(_MOODS)]
+    subject = _SUBJECTS[digest[1] % len(_SUBJECTS)]
+    number = int.from_bytes(digest[2:4], "big") % 10000
+    return f"{mood}{subject}{number:04d}"
 
 
 def generate_ssh_keypair(comment: str) -> tuple[str, str]:
@@ -366,6 +376,9 @@ async def create_tunnel_with_invoice(
 
     remote_port = await allocate_remote_port(settings.remote_port_min, settings.remote_port_max)
     subdomain = random_subdomain()
+    if req.client_note:
+        existing = await get_proxies_by_client_note(req.client_note)
+        subdomain = existing[0].subdomain if existing else deterministic_subdomain(req.client_note)
     proxy_id = urlsafe_short_hash()
     payments_id = urlsafe_short_hash()
     try:
