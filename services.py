@@ -1,43 +1,47 @@
+import hashlib
 import os
 import random
-import string
+import re
 import subprocess
 import tempfile
-import hashlib
-from datetime import datetime, timezone, timedelta
-
-from loguru import logger
+from datetime import datetime, timedelta, timezone
 
 from lnbits.core.models import Payment
 from lnbits.core.services import create_invoice
 from lnbits.helpers import urlsafe_short_hash
+from loguru import logger
+from sqlalchemy.exc import IntegrityError
 
 from .crud import (
+    create_extension_settings,
     create_payments,
     create_proxies,
-    get_extension_settings_public,
+    db,
     delete_proxies,
-    get_proxies,
+    get_active_or_pending_proxy_by_subdomain,
+    get_extension_settings,
+    get_extension_settings_public,
     get_payments_by_id,
-    get_proxies_by_client_note,
+    get_proxies,
     get_proxies_by_id,
+    get_proxies_by_public_id_and_client_note,
+    update_extension_settings,
     update_payments,
     update_proxies,
-    get_extension_settings,
-    create_extension_settings,
-    update_extension_settings,
-    db,
 )
 from .models import (
-    PaymentsPaymentRequest,
     CreatePayments,
     CreateProxies,
-    Proxies,
     CreateTunnelRequest,
     CreateTunnelResponse,
     ExtensionSettings,
+    PaymentsPaymentRequest,
+    Proxies,
     PublicTopupRequest,
 )
+
+MAX_PROXY_RESERVATION_ATTEMPTS = 10
+
 
 async def get_settings(user_id: str) -> ExtensionSettings:
     settings = await get_extension_settings(user_id)
@@ -73,6 +77,24 @@ async def allocate_remote_port(
         port = random.randint(remote_port_min, remote_port_max)
         if port not in used:
             return port
+
+
+async def allocate_subdomain(
+    desired: str | None = None,
+    max_attempts: int = MAX_PROXY_RESERVATION_ATTEMPTS,
+) -> str:
+    if desired:
+        existing = await get_active_or_pending_proxy_by_subdomain(desired)
+        if not existing:
+            return desired
+
+    for _ in range(max_attempts):
+        candidate = random_subdomain()
+        existing = await get_active_or_pending_proxy_by_subdomain(candidate)
+        if not existing:
+            return candidate
+
+    raise ValueError("Failed to allocate a unique subdomain.")
 
 
 _SUBJECTS = [
@@ -195,11 +217,115 @@ def generate_ssh_keypair(comment: str) -> tuple[str, str]:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        with open(key_path, "r", encoding="utf-8") as f_priv:
+        with open(key_path, encoding="utf-8") as f_priv:
             private_key = f_priv.read()
-        with open(f"{key_path}.pub", "r", encoding="utf-8") as f_pub:
+        with open(f"{key_path}.pub", encoding="utf-8") as f_pub:
             public_key = f_pub.read().strip()
     return private_key, public_key
+
+
+def _caddy_block(host: str, remote_port: int) -> str:
+    return f"""{host} {{
+  reverse_proxy 127.0.0.1:{remote_port}
+}}
+
+"""
+
+
+def _sort_proxy_preference(proxy: Proxies) -> tuple[datetime, datetime, str]:
+    return (
+        proxy.expires_at,
+        proxy.updated_at,
+        proxy.id,
+    )
+
+
+def _select_canonical_proxies(proxies: list[Proxies], domain: str) -> list[Proxies]:
+    by_host: dict[str, Proxies] = {}
+    for proxy in proxies:
+        host = f"{proxy.subdomain}.{domain}"
+        current = by_host.get(host)
+        if current is None or _sort_proxy_preference(proxy) > _sort_proxy_preference(current):
+            by_host[host] = proxy
+    return list(by_host.values())
+
+
+async def _mark_expired_proxies(
+    user_id: str,
+    settings: ExtensionSettings,
+    now: datetime,
+) -> None:
+    expired = await db.fetchall(
+        """SELECT * FROM reverse_proxy.proxies
+            WHERE status = :status AND expires_at <= :now AND user_id = :user_id""",
+        values={"status": "active", "now": now, "user_id": user_id},
+        model=Proxies,
+    )
+    for proxy in expired:
+        if not proxy.ssh_public_key:
+            captured_key = _extract_authorized_key(settings, proxy)
+            if captured_key:
+                proxy.ssh_public_key = captured_key
+        proxy.status = "expired"
+        await update_proxies(proxy)
+        _remove_authorized_key(settings, proxy)
+        logger.info(
+            f"reverse_proxy: marked proxy {proxy.id} as expired (was active, "
+            f"expires_at={proxy.expires_at})"
+        )
+
+
+async def _prune_stale_proxies(
+    user_id: str,
+    settings: ExtensionSettings,
+    prune_cutoff: datetime,
+) -> None:
+    stale = await db.fetchall(
+        """SELECT * FROM reverse_proxy.proxies
+            WHERE status = :status AND expires_at <= :cutoff AND user_id = :user_id""",
+        values={"status": "expired", "cutoff": prune_cutoff, "user_id": user_id},
+        model=Proxies,
+    )
+    for proxy in stale:
+        _remove_authorized_key(settings, proxy)
+        await delete_proxies(user_id, proxy.id)
+        logger.info(
+            f"reverse_proxy: pruned expired proxy {proxy.id} "
+            f"(expired at {proxy.expires_at}, older than 7 days)"
+        )
+
+
+async def _load_canonical_active_proxies(
+    user_id: str,
+    settings: ExtensionSettings,
+    now: datetime,
+) -> list[Proxies]:
+    active = await db.fetchall(
+        """SELECT * FROM reverse_proxy.proxies
+            WHERE status = :status AND expires_at > :now AND user_id = :user_id""",
+        values={"status": "active", "now": now, "user_id": user_id},
+        model=Proxies,
+    )
+    canonical_active = _select_canonical_proxies(active, settings.domain)
+    if len(canonical_active) != len(active):
+        logger.warning(
+            "reverse_proxy: deduped active proxies for Caddy sync "
+            f"({len(active)} rows -> {len(canonical_active)} routes)"
+        )
+    return canonical_active
+
+
+async def _ensure_active_authorized_keys(
+    settings: ExtensionSettings,
+    active: list[Proxies],
+) -> None:
+    for proxy in active:
+        if not proxy.ssh_public_key:
+            proxy.ssh_public_key = _extract_authorized_key(settings, proxy)
+            if proxy.ssh_public_key:
+                await update_proxies(proxy)
+        if proxy.ssh_public_key:
+            _add_authorized_key(settings, proxy, proxy.ssh_public_key)
 
 
 def ensure_caddy_route(proxy: Proxies, settings: ExtensionSettings) -> None:
@@ -210,15 +336,10 @@ def ensure_caddy_route(proxy: Proxies, settings: ExtensionSettings) -> None:
     """
     host = f"{proxy.subdomain}.{settings.domain}"
     _remove_existing_caddy_block(settings.caddy_tunnels_file, host)
-    block = f"""{host} {{
-  reverse_proxy 127.0.0.1:{proxy.remote_port}
-}}
-
-"""
 
     try:
-        with open(settings.caddy_tunnels_file, "a") as f:
-            f.write(block)
+        with open(settings.caddy_tunnels_file, "a", encoding="utf-8") as f:
+            f.write(_caddy_block(host, proxy.remote_port))
 
         subprocess.run(
             ["sudo", "systemctl", "reload", "caddy"],
@@ -238,28 +359,25 @@ def _remove_existing_caddy_block(caddy_file: str, host: str) -> None:
         return
 
     try:
-        with open(caddy_file, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        with open(caddy_file, encoding="utf-8") as f:
+            content = f.read()
 
-        new_lines = []
-        in_block = False
-        removed = False
-        for line in lines:
-            stripped = line.strip()
-            if not in_block and stripped == f"{host} {{":
-                in_block = True
-                removed = True
-                continue
-            if in_block and stripped == "}":
-                in_block = False
-                continue
-            if in_block:
-                continue
-            new_lines.append(line)
+        patterns = [
+            re.compile(
+                rf"(?ms)^\s*{re.escape(host)}\s*\{{\s*reverse_proxy\s+127\.0\.0\.1:\d+\s*\}}\s*"
+            ),
+            re.compile(
+                rf"(?m)^\s*{re.escape(host)}\s*\{{\s*$.*?^\}}\s*$\n?",
+                re.DOTALL,
+            ),
+        ]
+        updated = content
+        for pattern in patterns:
+            updated = pattern.sub("", updated)
 
-        if removed:
+        if updated != content:
             with open(caddy_file, "w", encoding="utf-8") as f:
-                f.writelines(new_lines)
+                f.write(updated)
             logger.info(f"reverse_proxy: removed duplicate Caddy block for {host}")
     except Exception as exc:
         logger.error(f"reverse_proxy: failed to dedupe Caddy block for {host}: {exc}")
@@ -280,71 +398,18 @@ async def cleanup_expired_proxies_and_sync_caddy(
     now = datetime.now(timezone.utc)
     prune_cutoff = now - timedelta(days=7)
 
-    # 1) Mark expired
-    expired = await db.fetchall(
-        """SELECT * FROM reverse_proxy.proxies
-            WHERE status = :status AND expires_at <= :now AND user_id = :user_id""",
-        values={"status": "active", "now": now, "user_id": user_id},
-        model=Proxies,
-    )
-    for proxy in expired:
-        if not proxy.ssh_public_key:
-            captured_key = _extract_authorized_key(settings, proxy)
-            if captured_key:
-                proxy.ssh_public_key = captured_key
-        proxy.status = "expired"
-        await update_proxies(proxy)
-        _remove_authorized_key(settings, proxy)
-        logger.info(
-            f"reverse_proxy: marked proxy {proxy.id} as expired (was active, "
-            f"expires_at={proxy.expires_at})"
-        )
-
-    # 1b) Remove expired proxies older than a week
-    stale = await db.fetchall(
-        """SELECT * FROM reverse_proxy.proxies
-            WHERE status = :status AND expires_at <= :cutoff AND user_id = :user_id""",
-        values={"status": "expired", "cutoff": prune_cutoff, "user_id": user_id},
-        model=Proxies,
-    )
-    for proxy in stale:
-        _remove_authorized_key(settings, proxy)
-        await delete_proxies(user_id, proxy.id)
-        logger.info(
-            f"reverse_proxy: pruned expired proxy {proxy.id} "
-            f"(expired at {proxy.expires_at}, older than 7 days)"
-        )
-
-    # 2) Load still-active proxies
-    active = await db.fetchall(
-        """SELECT * FROM reverse_proxy.proxies
-            WHERE status = :status AND expires_at > :now AND user_id = :user_id""",
-        values={"status": "active", "now": now, "user_id": user_id},
-        model=Proxies,
-    )
-
-    # 2b) Ensure authorized_keys contains entries for active tunnels
-    for proxy in active:
-        if not proxy.ssh_public_key:
-            proxy.ssh_public_key = _extract_authorized_key(settings, proxy)
-            if proxy.ssh_public_key:
-                await update_proxies(proxy)
-        if proxy.ssh_public_key:
-            _add_authorized_key(settings, proxy, proxy.ssh_public_key)
+    await _mark_expired_proxies(user_id, settings, now)
+    await _prune_stale_proxies(user_id, settings, prune_cutoff)
+    canonical_active = await _load_canonical_active_proxies(user_id, settings, now)
+    await _ensure_active_authorized_keys(settings, canonical_active)
 
     # 3) Rewrite Caddy tunnels file
     try:
         os.makedirs(os.path.dirname(settings.caddy_tunnels_file), exist_ok=True)
-        with open(settings.caddy_tunnels_file, "w") as f:
-            for proxy in active:
+        with open(settings.caddy_tunnels_file, "w", encoding="utf-8") as f:
+            for proxy in canonical_active:
                 host = f"{proxy.subdomain}.{settings.domain}"
-                f.write(
-                    f"""{host} {{
-  reverse_proxy 127.0.0.1:{proxy.remote_port}
-}}
-
-"""
-                )
+                f.write(_caddy_block(host, proxy.remote_port))
 
         subprocess.run(
             ["sudo", "systemctl", "reload", "caddy"],
@@ -352,7 +417,7 @@ async def cleanup_expired_proxies_and_sync_caddy(
         )
         logger.info(
             f"reverse_proxy: synced Caddy tunnels file with "
-            f"{len(active)} active proxies"
+            f"{len(canonical_active)} active proxies"
         )
     except Exception as exc:
         logger.error(f"reverse_proxy: failed to sync Caddy routes: {exc}")
@@ -374,18 +439,64 @@ async def create_tunnel_with_invoice(
     if amount <= 0:
         raise ValueError("Amount must be > 0.")
 
-    remote_port = await allocate_remote_port(settings.remote_port_min, settings.remote_port_max)
-    subdomain = random_subdomain()
+    existing_proxy: Proxies | None = None
     if req.client_note:
-        existing = await get_proxies_by_client_note(req.client_note)
-        subdomain = existing[0].subdomain if existing else deterministic_subdomain(req.client_note)
-    proxy_id = urlsafe_short_hash()
+        existing = await get_proxies_by_public_id_and_client_note(
+            req.public_id, req.client_note
+        )
+        if existing:
+            existing_proxy = max(existing, key=_sort_proxy_preference)
+
+    proxy_id = existing_proxy.id if existing_proxy else urlsafe_short_hash()
     payments_id = urlsafe_short_hash()
     try:
         private_key, public_key = generate_ssh_keypair(f"reverse_proxy {proxy_id}")
     except Exception as exc:
         logger.error(f"reverse_proxy: failed to generate ssh keypair: {exc}")
         raise
+
+    created_proxy = False
+    if existing_proxy:
+        subdomain = existing_proxy.subdomain
+        remote_port = existing_proxy.remote_port
+    else:
+        desired_subdomain = (
+            deterministic_subdomain(req.client_note) if req.client_note else None
+        )
+        last_error: Exception | None = None
+        for _ in range(MAX_PROXY_RESERVATION_ATTEMPTS):
+            subdomain = await allocate_subdomain(desired_subdomain)
+            remote_port = await allocate_remote_port(
+                settings.remote_port_min, settings.remote_port_max
+            )
+            proxy_id = urlsafe_short_hash()
+            try:
+                await create_proxies(
+                    user_id=settings.id,
+                    data=CreateProxies(
+                        subdomain=subdomain,
+                        remote_port=remote_port,
+                        ssh_user=settings.ssh_user,
+                        ssh_public_key=public_key,
+                        expires_at=now,
+                        status="pending",
+                        public_id=req.public_id,
+                        client_note=req.client_note or "",
+                    ),
+                    proxies_id=proxy_id,
+                )
+                created_proxy = True
+                break
+            except IntegrityError as exc:
+                last_error = exc
+                logger.warning(
+                    "reverse_proxy: proxy reservation collision for "
+                    f"subdomain={subdomain} remote_port={remote_port}, retrying"
+                )
+                desired_subdomain = None
+        else:
+            raise ValueError("Failed to reserve a unique proxy.") from last_error
+
     expires_at = now  # will be extended on first payment
 
     memo = f"Reverse proxy {subdomain}.{settings.domain} for {req.days} day(s)"
@@ -402,11 +513,27 @@ async def create_tunnel_with_invoice(
         "client_note": req.client_note or "",
         "pubkey": public_key,
     }
-    payment: Payment = await create_invoice(
-        wallet_id=settings.wallet,
-        amount=amount,
-        extra=invoice_extra,
-        memo=memo,
+    try:
+        payment: Payment = await create_invoice(
+            wallet_id=settings.wallet,
+            amount=amount,
+            extra=invoice_extra,
+            memo=memo,
+        )
+    except Exception:
+        if created_proxy:
+            await delete_proxies(settings.id, proxy_id)
+        raise
+
+    await create_payments(
+        proxies_id=proxy_id,
+        data=CreatePayments(
+            tunnel_id=proxy_id,
+            invoice_id=payment.payment_hash,
+            amount=amount,
+            paid=False,
+        ),
+        payments_id=payments_id,
     )
 
     ssh_command = (
@@ -505,7 +632,7 @@ async def _process_payment_with_setup(payment: Payment, setup: dict) -> bool:
     if not settings or not getattr(settings, "id", None):
         logger.warning("reverse_proxy: missing settings for proxy_setup public_id")
         return False
-    owner_id = getattr(settings, "id")
+    owner_id = settings.id
     price_per_day = settings.price_per_day_sats or 0
     if price_per_day <= 0:
         logger.warning("reverse_proxy: invalid price_per_day_sats in settings")
@@ -589,7 +716,7 @@ def _extract_authorized_key(settings: ExtensionSettings, proxy: Proxies) -> str 
         return None
 
     try:
-        with open(ak_path, "r", encoding="utf-8") as f:
+        with open(ak_path, encoding="utf-8") as f:
             for line in f:
                 if marker not in line:
                     continue
@@ -622,17 +749,18 @@ def _add_authorized_key(settings: ExtensionSettings, proxy: Proxies, pubkey: str
     try:
         existing = []
         if os.path.exists(ak_path):
-            with open(ak_path, "r", encoding="utf-8") as f:
+            with open(ak_path, encoding="utf-8") as f:
                 existing = [ln.rstrip("\n") for ln in f.readlines()]
-        if any(marker in ln for ln in existing):
-            return
-        with open(ak_path, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
+        new_lines = [ln for ln in existing if marker not in ln]
+        new_lines.append(line)
+        with open(ak_path, "w", encoding="utf-8") as f:
+            if new_lines:
+                f.write("\n".join(new_lines) + "\n")
         try:
             os.chmod(ak_path, 0o600)
         except Exception:
             pass
-        logger.info(f"reverse_proxy: added authorized_key for proxy {proxy.id}")
+        logger.info(f"reverse_proxy: ensured authorized_key for proxy {proxy.id}")
     except Exception as exc:
         logger.error(f"reverse_proxy: failed to add authorized_key for {proxy.id}: {exc}")
 
@@ -643,7 +771,7 @@ def _remove_authorized_key(settings: ExtensionSettings, proxy: Proxies) -> None:
     if not os.path.exists(ak_path):
         return
     try:
-        with open(ak_path, "r", encoding="utf-8") as f:
+        with open(ak_path, encoding="utf-8") as f:
             lines = f.readlines()
         new_lines = [ln for ln in lines if marker not in ln]
         if len(new_lines) == len(lines):
@@ -703,3 +831,4 @@ async def delete_proxy_and_key(user_id: str, proxy_id: str, settings: ExtensionS
     if proxy:
         _remove_authorized_key(settings, proxy)
     await delete_proxies(user_id, proxy_id)
+    await cleanup_expired_proxies_and_sync_caddy(user_id, settings)

@@ -5,14 +5,14 @@ from lnbits.db import Database, Filters, Page
 from lnbits.helpers import urlsafe_short_hash
 
 from .models import (
-    Payments,
-    PaymentsFilters,
     CreatePayments,
     CreateProxies,
+    ExtensionSettings,
+    Payments,
+    PaymentsFilters,
     Proxies,
     ProxiesFilters,
-    ExtensionSettings,
-    UserExtensionSettings
+    UserExtensionSettings,
 )
 
 db = Database("ext_reverse_proxy")
@@ -21,7 +21,7 @@ db = Database("ext_reverse_proxy")
 ############################ Settings #############################
 async def create_extension_settings(user_id: str, data: ExtensionSettings) -> ExtensionSettings:
     settings = UserExtensionSettings(**data.dict(), id=user_id)
-    settings.public_id=urlsafe_short_hash()
+    settings.public_id = urlsafe_short_hash()
     await db.insert("reverse_proxy.extension_settings", settings)
     return settings
 
@@ -111,6 +111,35 @@ async def get_proxies_by_client_note(
             WHERE client_note = :client_note
         """,
         {"client_note": client_note},
+        Proxies,
+    )
+
+
+async def get_proxies_by_public_id_and_client_note(
+    public_id: str,
+    client_note: str,
+) -> list[Proxies]:
+    return await db.fetchall(
+        """
+            SELECT * FROM reverse_proxy.proxies
+            WHERE public_id = :public_id AND client_note = :client_note
+        """,
+        {"public_id": public_id, "client_note": client_note},
+        Proxies,
+    )
+
+
+async def get_active_or_pending_proxy_by_subdomain(
+    subdomain: str,
+) -> Proxies | None:
+    return await db.fetchone(
+        """
+            SELECT * FROM reverse_proxy.proxies
+            WHERE subdomain = :subdomain AND status IN ('active', 'pending')
+            ORDER BY updated_at DESC
+            LIMIT 1
+        """,
+        {"subdomain": subdomain},
         Proxies,
     )
 
