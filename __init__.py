@@ -9,9 +9,7 @@ from .tasks import cleanup_tunnels_hourly, wait_for_paid_invoices
 from .views import reverse_proxy_generic_router
 from .views_api import reverse_proxy_api_router
 
-reverse_proxy_ext: APIRouter = APIRouter(
-    prefix="/reverse_proxy", tags=["reverse_proxy"]
-)
+reverse_proxy_ext: APIRouter = APIRouter(prefix="/reverse_proxy", tags=["reverse_proxy"])
 reverse_proxy_ext.include_router(reverse_proxy_generic_router)
 reverse_proxy_ext.include_router(reverse_proxy_api_router)
 
@@ -37,9 +35,7 @@ def reverse_proxy_stop():
 def reverse_proxy_start():
     task = create_permanent_unique_task("ext_reverse_proxy", wait_for_paid_invoices)
     scheduled_tasks.append(task)
-    hourly_cleanup = create_permanent_unique_task(
-        "ext_reverse_proxy_cleanup", cleanup_tunnels_hourly
-    )
+    hourly_cleanup = create_permanent_unique_task("ext_reverse_proxy_cleanup", cleanup_tunnels_hourly)
     scheduled_tasks.append(hourly_cleanup)
 
 

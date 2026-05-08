@@ -2,32 +2,20 @@
 <!--//PAGE FOR THE EXTENSIONS BACKEND IN LNBITS//////-->
 <!--/////////////////////////////////////////////////-->
 
-
-{% extends "base.html" %}
-
-
-{% from "macros.jinja" import window_vars with context %} {% block scripts %} {{
-window_vars(user) }}
-
+{% extends "base.html" %} {% from "macros.jinja" import window_vars with context
+%} {% block scripts %} {{ window_vars(user) }}
 
 <script src="{{ static_url_for('reverse_proxy/static', path='js/index.js') }}"></script>
-
 
 {% endblock %} {% block page %}
 <div class="row q-col-gutter-md">
   <div class="col-12 col-md-8 col-lg-7 q-gutter-y-md">
-        
-    <q-card
-      id="settingsCard"
-    >
-
-      <q-card-section
-        class=""
-      >
+    <q-card id="settingsCard">
+      <q-card-section class="">
         <div class="row">
           <div class="col">
             <span class="text-h5">wallet</span>
-                        <q-btn
+            <q-btn
               @click="showSettingsDataForm()"
               v-if="true"
               unelevated
@@ -37,12 +25,12 @@ window_vars(user) }}
               class="float-right"
             >
             </q-btn>
-                <q-btn
-    v-if="settingsFormDialog.data.public_id"
-    @click="copyText(settingsFormDialog.data.public_id)"
-    class="float-right"
-    >Copy Public ID</q-btn>
-
+            <q-btn
+              v-if="settingsFormDialog.data.public_id"
+              @click="copyText(settingsFormDialog.data.public_id)"
+              class="float-right"
+              >Copy Public ID</q-btn
+            >
           </div>
         </div>
       </q-card-section>
@@ -51,13 +39,8 @@ window_vars(user) }}
     <div class="q-mt-lg">
       <span class="text-h5">Proxies</span>
     </div>
-    <q-card
-      id="proxiesCard"
-      class="q-mt-xs"
-    >
-      <q-card-section
-        class=""
-      >
+    <q-card id="proxiesCard" class="q-mt-xs">
+      <q-card-section class="">
         <div class="row items-center no-wrap q-mb-md">
           <div class="col">
             <q-input
@@ -81,7 +64,6 @@ window_vars(user) }}
             </q-input>
           </div>
           <div class="col-auto">
-            
             <q-btn
               @click="showNewProxiesForm()"
               unelevated
@@ -90,7 +72,7 @@ window_vars(user) }}
             >
               New Proxies
             </q-btn>
-            
+
             <q-btn
               flat
               color="grey"
@@ -122,7 +104,6 @@ window_vars(user) }}
           <template v-slot:body="props">
             <q-tr :props="props">
               <q-td auto-width>
-                
                 <q-btn
                   flat
                   dense
@@ -135,7 +116,7 @@ window_vars(user) }}
                   class="q-mr-sm"
                   ><q-tooltip>Open public page</q-tooltip></q-btn
                 >
-                 
+
                 <q-btn
                   flat
                   dense
@@ -147,7 +128,7 @@ window_vars(user) }}
                 >
                   <q-tooltip> Edit </q-tooltip>
                 </q-btn>
-                
+
                 <q-btn
                   flat
                   dense
@@ -176,13 +157,8 @@ window_vars(user) }}
     <div class="q-mt-lg">
       <span class="text-h5">Payments</span>
     </div>
-    <q-card
-      id="paymentsCard"
-      class="q-mt-xs"
-    >
-      <q-card-section
-        class=""
-      >
+    <q-card id="paymentsCard" class="q-mt-xs">
+      <q-card-section class="">
         <div class="row items-center no-wrap q-mb-md">
           <div class="col">
             <q-input
@@ -248,7 +224,6 @@ window_vars(user) }}
           <template v-slot:body="props">
             <q-tr :props="props">
               <q-td auto-width>
-                
                 <q-btn
                   flat
                   dense
@@ -274,13 +249,11 @@ window_vars(user) }}
       </q-card-section>
     </q-card>
   </div>
-  
+
   <div class="col-12 col-md-4 col-lg-5 q-gutter-y-md">
     <q-card>
       <q-card-section>
-        <h6 class="text-subtitle1 q-my-none">
-          {{SITE_TITLE}} reverse_proxy
-        </h6>
+        <h6 class="text-subtitle1 q-my-none">{{SITE_TITLE}} reverse_proxy</h6>
         <p>Internal extension for allowing ssh tunnels</p>
       </q-card-section>
       <q-card-section class="q-pa-none">
@@ -293,7 +266,6 @@ window_vars(user) }}
       </q-card-section>
     </q-card>
   </div>
-  
 
   <!--/////////////////////////////////////////////////-->
   <!--//////////////FORM DIALOG////////////////////////-->
@@ -382,37 +354,41 @@ window_vars(user) }}
     >
       <span class="text-h5">Proxies</span>
 
-<q-input
-  filled
-  dense
-  v-model.trim="proxiesFormDialog.data.subdomain"
-  label="Subdomain"
-  hint=" "
-></q-input>
-  
-<q-input
-  filled
-  dense
-  v-model.trim="proxiesFormDialog.data.expires_at"
-  placeholder="YYYY-MM-DD HH:mm"
-  label="When tunnel defaults"
-  hint=" "
->
-  <template v-slot:append>
-    <q-icon name="event" class="cursor-pointer">
-      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-        <q-date
-          v-model="proxiesFormDialog.data.expires_at"
-          mask="YYYY-MM-DD HH:mm"
-        >
-          <div class="row items-center justify-end">
-            <q-btn v-close-popup label="Close" color="primary" flat />
-          </div>
-        </q-date>
-      </q-popup-proxy>
-    </q-icon>
-  </template>
-</q-input>
+      <q-input
+        filled
+        dense
+        v-model.trim="proxiesFormDialog.data.subdomain"
+        label="Subdomain"
+        hint=" "
+      ></q-input>
+
+      <q-input
+        filled
+        dense
+        v-model.trim="proxiesFormDialog.data.expires_at"
+        placeholder="YYYY-MM-DD HH:mm"
+        label="When tunnel defaults"
+        hint=" "
+      >
+        <template v-slot:append>
+          <q-icon name="event" class="cursor-pointer">
+            <q-popup-proxy
+              cover
+              transition-show="scale"
+              transition-hide="scale"
+            >
+              <q-date
+                v-model="proxiesFormDialog.data.expires_at"
+                mask="YYYY-MM-DD HH:mm"
+              >
+                <div class="row items-center justify-end">
+                  <q-btn v-close-popup label="Close" color="primary" flat />
+                </div>
+              </q-date>
+            </q-popup-proxy>
+          </q-icon>
+        </template>
+      </q-input>
 
       <div class="row q-mt-lg">
         <q-btn @click="saveProxies" unelevated color="primary">
@@ -423,6 +399,5 @@ window_vars(user) }}
       </div>
     </q-card>
   </q-dialog>
-
 </div>
 {% endblock %}

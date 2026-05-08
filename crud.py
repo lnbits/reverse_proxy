@@ -38,6 +38,7 @@ async def get_extension_settings(
         ExtensionSettings,
     )
 
+
 async def get_extension_settings_public(
     public_id: str,
 ) -> UserExtensionSettings | None:
@@ -49,6 +50,7 @@ async def get_extension_settings_public(
         {"public_id": public_id},
         UserExtensionSettings,
     )
+
 
 async def update_extension_settings(user_id: str, data: ExtensionSettings) -> ExtensionSettings:
     settings = UserExtensionSettings(**data.dict(), id=user_id)

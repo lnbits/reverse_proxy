@@ -91,16 +91,13 @@ def test_add_authorized_key_replaces_existing_marker(tmp_path, monkeypatch):
 
 def test_normalize_public_key_recovers_from_corrupted_authorized_keys_line():
     corrupted = (
-        'no-pty,no-user-rc,no-X11-forwarding,no-agent-forwarding,'
+        "no-pty,no-user-rc,no-X11-forwarding,no-agent-forwarding,"
         'permitopen="127.0.0.1:10003",command="echo reverse_proxy:proxy-1" '
         'reverse_proxy:proxy-1" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey '
         "reverse_proxy proxy-1 reverse_proxy:proxy-1"
     )
 
-    assert (
-        _normalize_public_key(corrupted)
-        == "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey"
-    )
+    assert _normalize_public_key(corrupted) == "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey"
 
 
 def test_extract_authorized_key_reads_corrupted_line(tmp_path, monkeypatch):
@@ -109,7 +106,7 @@ def test_extract_authorized_key_reads_corrupted_line(tmp_path, monkeypatch):
     authorized_keys = ssh_dir / "authorized_keys"
     authorized_keys.write_text(
         (
-            'no-pty,no-user-rc,no-X11-forwarding,no-agent-forwarding,'
+            "no-pty,no-user-rc,no-X11-forwarding,no-agent-forwarding,"
             'permitopen="127.0.0.1:10003",command="echo reverse_proxy:proxy-1" '
             'reverse_proxy:proxy-1" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey '
             "reverse_proxy proxy-1 reverse_proxy:proxy-1\n"
@@ -124,7 +121,4 @@ def test_extract_authorized_key_reads_corrupted_line(tmp_path, monkeypatch):
     settings = type("Settings", (), {"ssh_user": "tunneluser"})()
     proxy = _proxy("proxy-1", "same-host", 12001)
 
-    assert (
-        _extract_authorized_key(settings, proxy)
-        == "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey"
-    )
+    assert _extract_authorized_key(settings, proxy) == "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey"

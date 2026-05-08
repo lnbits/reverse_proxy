@@ -62,6 +62,7 @@ async def update_settings(user_id: str, data: ExtensionSettings) -> ExtensionSet
 
     return settings
 
+
 async def _get_used_ports() -> set[int]:
     rows = await db.fetchall("SELECT remote_port FROM reverse_proxy.proxies")
     return {int(r["remote_port"]) for r in rows}
@@ -273,8 +274,7 @@ async def _mark_expired_proxies(
         await update_proxies(proxy)
         _remove_authorized_key(settings, proxy)
         logger.info(
-            f"reverse_proxy: marked proxy {proxy.id} as expired (was active, "
-            f"expires_at={proxy.expires_at})"
+            f"reverse_proxy: marked proxy {proxy.id} as expired (was active, " f"expires_at={proxy.expires_at})"
         )
 
 
@@ -293,8 +293,7 @@ async def _prune_stale_proxies(
         _remove_authorized_key(settings, proxy)
         await delete_proxies(user_id, proxy.id)
         logger.info(
-            f"reverse_proxy: pruned expired proxy {proxy.id} "
-            f"(expired at {proxy.expires_at}, older than 7 days)"
+            f"reverse_proxy: pruned expired proxy {proxy.id} " f"(expired at {proxy.expires_at}, older than 7 days)"
         )
 
 
@@ -366,9 +365,7 @@ def _remove_existing_caddy_block(caddy_file: str, host: str) -> None:
             content = f.read()
 
         patterns = [
-            re.compile(
-                rf"(?ms)^\s*{re.escape(host)}\s*\{{\s*reverse_proxy\s+127\.0\.0\.1:\d+\s*\}}\s*"
-            ),
+            re.compile(rf"(?ms)^\s*{re.escape(host)}\s*\{{\s*reverse_proxy\s+127\.0\.0\.1:\d+\s*\}}\s*"),
             re.compile(
                 rf"(?m)^\s*{re.escape(host)}\s*\{{\s*$.*?^\}}\s*$\n?",
                 re.DOTALL,
@@ -418,10 +415,7 @@ async def cleanup_expired_proxies_and_sync_caddy(
             ["sudo", "systemctl", "reload", "caddy"],
             check=True,
         )
-        logger.info(
-            f"reverse_proxy: synced Caddy tunnels file with "
-            f"{len(canonical_active)} active proxies"
-        )
+        logger.info(f"reverse_proxy: synced Caddy tunnels file with " f"{len(canonical_active)} active proxies")
     except Exception as exc:
         logger.error(f"reverse_proxy: failed to sync Caddy routes: {exc}")
 
@@ -444,9 +438,7 @@ async def create_tunnel_with_invoice(
 
     existing_proxy: Proxies | None = None
     if req.client_note:
-        existing = await get_proxies_by_public_id_and_client_note(
-            req.public_id, req.client_note
-        )
+        existing = await get_proxies_by_public_id_and_client_note(req.public_id, req.client_note)
         if existing:
             existing_proxy = max(existing, key=_sort_proxy_preference)
 
@@ -463,15 +455,11 @@ async def create_tunnel_with_invoice(
         subdomain = existing_proxy.subdomain
         remote_port = existing_proxy.remote_port
     else:
-        desired_subdomain = (
-            deterministic_subdomain(req.client_note) if req.client_note else None
-        )
+        desired_subdomain = deterministic_subdomain(req.client_note) if req.client_note else None
         last_error: Exception | None = None
         for _ in range(MAX_PROXY_RESERVATION_ATTEMPTS):
             subdomain = await allocate_subdomain(desired_subdomain)
-            remote_port = await allocate_remote_port(
-                settings.remote_port_min, settings.remote_port_max
-            )
+            remote_port = await allocate_remote_port(settings.remote_port_min, settings.remote_port_max)
             proxy_id = urlsafe_short_hash()
             try:
                 await create_proxies(
@@ -540,8 +528,7 @@ async def create_tunnel_with_invoice(
     )
 
     ssh_command = (
-        f"ssh -i ./reverse-proxy-key -N -R {remote_port}:localhost:5000 "
-        f"{settings.ssh_user}@{settings.ssh_host}"
+        f"ssh -i ./reverse-proxy-key -N -R {remote_port}:localhost:5000 " f"{settings.ssh_user}@{settings.ssh_host}"
     )
     public_url = f"https://{subdomain}.{settings.domain}"
 
@@ -582,9 +569,7 @@ async def payment_received_for_payments(payment: Payment) -> bool:
 
     proxy = await get_proxies_by_id(getattr(payments, "tunnel_id", ""))
     if not proxy:
-        logger.warning(
-            f"No proxy found for ID: {getattr(payments, 'tunnel_id', '')}"
-        )
+        logger.warning(f"No proxy found for ID: {getattr(payments, 'tunnel_id', '')}")
         return False
 
     settings = await get_settings(proxy.user_id)
@@ -646,9 +631,7 @@ async def _process_payment_with_setup(payment: Payment, setup: dict) -> bool:
     expires_at = now
     remote_port = int(setup.get("remote_port", 0))
     if remote_port <= 0:
-        remote_port = await allocate_remote_port(
-            settings.remote_port_min, settings.remote_port_max
-        )
+        remote_port = await allocate_remote_port(settings.remote_port_min, settings.remote_port_max)
 
     if not proxy:
         proxy = await create_proxies(
@@ -736,9 +719,7 @@ def _extract_authorized_key(settings: ExtensionSettings, proxy: Proxies) -> str 
                 if normalized:
                     return normalized
     except Exception as exc:
-        logger.error(
-            f"reverse_proxy: failed to read authorized_key for {proxy.id}: {exc}"
-        )
+        logger.error(f"reverse_proxy: failed to read authorized_key for {proxy.id}: {exc}")
     return None
 
 
@@ -748,15 +729,13 @@ def _add_authorized_key(settings: ExtensionSettings, proxy: Proxies, pubkey: str
     """
     normalized_pubkey = _normalize_public_key(pubkey)
     if not normalized_pubkey:
-        logger.warning(
-            f"reverse_proxy: skipping invalid authorized_key payload for proxy {proxy.id}"
-        )
+        logger.warning(f"reverse_proxy: skipping invalid authorized_key payload for proxy {proxy.id}")
         return
     ak_path = _authorized_keys_path(settings)
     os.makedirs(os.path.dirname(ak_path), exist_ok=True)
     marker = f"reverse_proxy:{proxy.id}"
     options = (
-        f'no-pty,no-user-rc,no-X11-forwarding,no-agent-forwarding,'
+        f"no-pty,no-user-rc,no-X11-forwarding,no-agent-forwarding,"
         f'permitopen="127.0.0.1:{proxy.remote_port}",'
         f'command="echo {marker}"'
     )

@@ -24,8 +24,7 @@ window.app = Vue.createApp({
         data: {
           subdomain: null,
           expires_at: null,
-          wallet: null,
-          
+          wallet: null
         }
       },
       proxiesList: [],
@@ -33,15 +32,56 @@ window.app = Vue.createApp({
         search: '',
         loading: false,
         columns: [
-          {"name": "subdomain", "align": "left", "label": "Subdomain", "field": "subdomain", "sortable": true},
-          {"name": "remote_port", "align": "left", "label": "Port", "field": "remote_port", "sortable": true},
-          {"name": "ssh_user", "align": "left", "label": "Default tunneluser", "field": "ssh_user", "sortable": true},
-          {"name": "expires_at", "align": "left", "label": "When tunnel defaults", "field": "expires_at", "sortable": true},
-          {"name": "status", "align": "left", "label": "active/expired/paid", "field": "status", "sortable": true},
-          {"name": "wallet", "align": "left", "label": "Wallet", "field": "wallet", "sortable": true},
-          {"name": "updated_at", "align": "left", "label": "Updated At", "field": "updated_at", "sortable": true},
-          {"name": "id", "align": "left", "label": "ID", "field": "id", "sortable": true},
-          
+          {
+            name: 'subdomain',
+            align: 'left',
+            label: 'Subdomain',
+            field: 'subdomain',
+            sortable: true
+          },
+          {
+            name: 'remote_port',
+            align: 'left',
+            label: 'Port',
+            field: 'remote_port',
+            sortable: true
+          },
+          {
+            name: 'ssh_user',
+            align: 'left',
+            label: 'Default tunneluser',
+            field: 'ssh_user',
+            sortable: true
+          },
+          {
+            name: 'expires_at',
+            align: 'left',
+            label: 'When tunnel defaults',
+            field: 'expires_at',
+            sortable: true
+          },
+          {
+            name: 'status',
+            align: 'left',
+            label: 'active/expired/paid',
+            field: 'status',
+            sortable: true
+          },
+          {
+            name: 'wallet',
+            align: 'left',
+            label: 'Wallet',
+            field: 'wallet',
+            sortable: true
+          },
+          {
+            name: 'updated_at',
+            align: 'left',
+            label: 'Updated At',
+            field: 'updated_at',
+            sortable: true
+          },
+          {name: 'id', align: 'left', label: 'ID', field: 'id', sortable: true}
         ],
         pagination: {
           sortBy: 'updated_at',
@@ -61,13 +101,42 @@ window.app = Vue.createApp({
         search: '',
         loading: false,
         columns: [
-          {"name": "tunnel_id", "align": "left", "label": "Tunnel ID", "field": "tunnel_id", "sortable": true},
-          {"name": "invoice_id", "align": "left", "label": "Invoice ID", "field": "invoice_id", "sortable": true},
-          {"name": "amount", "align": "left", "label": "Amount", "field": "amount", "sortable": true},
-          {"name": "paid", "align": "left", "label": "Paid", "field": "paid", "sortable": true},
-          {"name": "updated_at", "align": "left", "label": "Updated At", "field": "updated_at", "sortable": true},
-          {"name": "id", "align": "left", "label": "ID", "field": "id", "sortable": true},
-          
+          {
+            name: 'tunnel_id',
+            align: 'left',
+            label: 'Tunnel ID',
+            field: 'tunnel_id',
+            sortable: true
+          },
+          {
+            name: 'invoice_id',
+            align: 'left',
+            label: 'Invoice ID',
+            field: 'invoice_id',
+            sortable: true
+          },
+          {
+            name: 'amount',
+            align: 'left',
+            label: 'Amount',
+            field: 'amount',
+            sortable: true
+          },
+          {
+            name: 'paid',
+            align: 'left',
+            label: 'Paid',
+            field: 'paid',
+            sortable: true
+          },
+          {
+            name: 'updated_at',
+            align: 'left',
+            label: 'Updated At',
+            field: 'updated_at',
+            sortable: true
+          },
+          {name: 'id', align: 'left', label: 'ID', field: 'id', sortable: true}
         ],
         pagination: {
           sortBy: 'updated_at',
@@ -110,9 +179,8 @@ window.app = Vue.createApp({
   },
 
   methods: {
-//////////////// Settings ////////////////////////
+    //////////////// Settings ////////////////////////
     async updateSettings() {
-      
       try {
         const data = {...this.settingsFormDialog.data}
 
@@ -128,7 +196,6 @@ window.app = Vue.createApp({
       }
     },
     async getSettings() {
-      
       try {
         const {data} = await LNbits.api.request(
           'GET',
@@ -137,7 +204,7 @@ window.app = Vue.createApp({
         )
         this.settingsFormDialog.data = data
       } catch (error) {
-       // LNbits.utils.notifyApiError(error)
+        // LNbits.utils.notifyApiError(error)
       }
     },
     async showSettingsDataForm() {
@@ -147,10 +214,9 @@ window.app = Vue.createApp({
     //////////////// Proxies ////////////////////////
     async showNewProxiesForm() {
       this.proxiesFormDialog.data = {
-          subdomain: null,
-          expires_at: null,
-          wallet: null,
-          
+        subdomain: null,
+        expires_at: null,
+        wallet: null
       }
       this.proxiesFormDialog.show = true
     },
@@ -159,7 +225,6 @@ window.app = Vue.createApp({
       this.proxiesFormDialog.show = true
     },
     async saveProxies() {
-      
       try {
         const data = {extra: {}, ...this.proxiesFormDialog.data}
         const method = data.id ? 'PUT' : 'POST'
@@ -178,13 +243,9 @@ window.app = Vue.createApp({
     },
 
     async getProxies(props) {
-      
       try {
         this.proxiesTable.loading = true
-        const params = LNbits.utils.prepareFilterQuery(
-          this.proxiesTable,
-          props
-        )
+        const params = LNbits.utils.prepareFilterQuery(this.proxiesTable, props)
         const {data} = await LNbits.api.request(
           'GET',
           `/reverse_proxy/api/v1/proxies/paginated?${params}`,
@@ -203,7 +264,6 @@ window.app = Vue.createApp({
         .confirmDialog('Are you sure you want to delete this Proxies?')
         .onOk(async () => {
           try {
-            
             await LNbits.api.request(
               'DELETE',
               '/reverse_proxy/api/v1/proxies/' + proxiesId,
@@ -223,15 +283,10 @@ window.app = Vue.createApp({
       )
     },
 
-
     async getPayments(props) {
-      
       try {
         this.paymentsTable.loading = true
-        let params = LNbits.utils.prepareFilterQuery(
-          this.paymentsTable,
-          props
-        )
+        let params = LNbits.utils.prepareFilterQuery(this.paymentsTable, props)
         const proxiesId = this.paymentsFormDialog.proxies.value
         if (proxiesId) {
           params += `&proxies_id=${proxiesId}`
@@ -254,7 +309,6 @@ window.app = Vue.createApp({
         .confirmDialog('Are you sure you want to delete this Payments?')
         .onOk(async () => {
           try {
-            
             await LNbits.api.request(
               'DELETE',
               '/reverse_proxy/api/v1/payments/' + paymentsId,

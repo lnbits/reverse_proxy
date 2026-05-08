@@ -1,5 +1,5 @@
-
 empty_dict: dict[str, str] = {}
+
 
 async def m002_proxies(db):
     """

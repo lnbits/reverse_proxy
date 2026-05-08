@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 ############################ Settings #############################
 
+
 class ExtensionSettings(BaseModel):
     wallet: str
     public_id: str | None
@@ -26,6 +27,7 @@ class ExtensionSettings(BaseModel):
 class UserExtensionSettings(ExtensionSettings):
     id: str
 
+
 ########################### Proxies ############################
 class CreateProxies(BaseModel):
     subdomain: str
@@ -36,7 +38,6 @@ class CreateProxies(BaseModel):
     status: str
     public_id: str
     client_note: str | None = None
-    
 
 
 class Proxies(BaseModel):
@@ -50,14 +51,20 @@ class Proxies(BaseModel):
     status: str
     public_id: str
     client_note: str | None = None
-    
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ProxiesFilters(FilterModel):
     __search_fields__ = [
-        "subdomain","remote_port","ssh_user","expires_at","status","public_id","client_note",
+        "subdomain",
+        "remote_port",
+        "ssh_user",
+        "expires_at",
+        "status",
+        "public_id",
+        "client_note",
     ]
 
     __sort_fields__ = [
@@ -68,7 +75,6 @@ class ProxiesFilters(FilterModel):
         "status",
         "public_id",
         "client_note",
-        
         "created_at",
         "updated_at",
     ]
@@ -85,7 +91,6 @@ class CreatePayments(BaseModel):
     invoice_id: str
     amount: int
     paid: bool
-    
 
 
 class Payments(BaseModel):
@@ -95,7 +100,7 @@ class Payments(BaseModel):
     invoice_id: str
     amount: int
     paid: bool
-    
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -110,11 +115,12 @@ class PublicTopupRequest(BaseModel):
     days: int = Field(gt=0)
 
 
-
-
 class PaymentsFilters(FilterModel):
     __search_fields__ = [
-        "tunnel_id","invoice_id","amount","paid",
+        "tunnel_id",
+        "invoice_id",
+        "amount",
+        "paid",
     ]
 
     __sort_fields__ = [
@@ -122,7 +128,6 @@ class PaymentsFilters(FilterModel):
         "invoice_id",
         "amount",
         "paid",
-        
         "created_at",
         "updated_at",
     ]
@@ -130,7 +135,9 @@ class PaymentsFilters(FilterModel):
     created_at: datetime | None
     updated_at: datetime | None
 
+
 ########################### Tunnel Request/Response ############################
+
 
 class CreateTunnelRequest(BaseModel):
     public_id: str
@@ -151,10 +158,6 @@ class CreateTunnelResponse(BaseModel):
     payment_hash: str
     payment_request: str
     client_note: str | None = None
-
-
-class PublicTopupRequest(BaseModel):
-    days: int = Field(gt=0)
 
 
 class PublicTunnel(BaseModel):

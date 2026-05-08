@@ -22,6 +22,4 @@ async def index(req: Request, user: User = Depends(check_user_exists)):
     except Exception:
         pass
 
-    return reverse_proxy_renderer().TemplateResponse(
-        "reverse_proxy/index.html", {"request": req, "user": user.json()}
-    )
+    return reverse_proxy_renderer().TemplateResponse("reverse_proxy/index.html", {"request": req, "user": user.json()})
