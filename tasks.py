@@ -38,9 +38,7 @@ async def _cleanup_all_tunnels_once():
         try:
             await cleanup_expired_proxies_and_sync_caddy(settings.id, settings)
         except Exception as exc:
-            logger.error(
-                f"reverse_proxy: cleanup failed for user {settings.id}: {exc}"
-            )
+            logger.error(f"reverse_proxy: cleanup failed for user {settings.id}: {exc}")
 
 
 # Runs every hour while the app is running

@@ -1,4 +1,3 @@
-import os
 from http import HTTPStatus
 
 from fastapi import APIRouter, Depends
@@ -15,7 +14,7 @@ from .crud import (
     create_payments,
     create_proxies,
     delete_payments,
-    delete_proxies,
+    get_extension_settings_public,
     get_payments_by_id,
     get_payments_paginated,
     get_proxies,
@@ -24,28 +23,27 @@ from .crud import (
     get_proxies_paginated,
     update_payments,
     update_proxies,
-    get_extension_settings_public
 )
 from .models import (
-    Payments,
-    PaymentsFilters,
-    PaymentsPaymentRequest,
-    PublicTopupRequest,
-    PublicTunnel,
     CreatePayments,
     CreateProxies,
-    Proxies,
-    ProxiesFilters,
     CreateTunnelRequest,
     CreateTunnelResponse,
     ExtensionSettings,
+    Payments,
+    PaymentsFilters,
+    PaymentsPaymentRequest,
+    Proxies,
+    ProxiesFilters,
+    PublicTopupRequest,
+    PublicTunnel,
 )
 from .services import (
-    payment_request_for_payments,
     create_tunnel_with_invoice,
-    get_settings,
-    update_settings,
     delete_proxy_and_key,
+    get_settings,
+    payment_request_for_payments,
+    update_settings,
 )
 
 proxies_filters = parse_filters(ProxiesFilters)
@@ -335,6 +333,7 @@ async def api_delete_payments(
 
 
 #################### Public tunnel request endpoint ####################
+
 
 @reverse_proxy_api_router.post(
     "/api/v1/tunnels",
