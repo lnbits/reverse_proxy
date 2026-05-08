@@ -41,6 +41,9 @@ from .models import (
 )
 
 MAX_PROXY_RESERVATION_ATTEMPTS = 10
+_SSH_PUBLIC_KEY_RE = re.compile(
+    r"(sk-ssh-ed25519@openssh\.com|ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521)\s+([A-Za-z0-9+/=]+)"
+)
 
 
 async def get_settings(user_id: str) -> ExtensionSettings:
@@ -706,6 +709,15 @@ def _authorized_keys_path(settings: ExtensionSettings) -> str:
     return os.path.join("/home", settings.ssh_user, ".ssh", "authorized_keys")
 
 
+def _normalize_public_key(pubkey: str | None) -> str | None:
+    if not pubkey:
+        return None
+    match = _SSH_PUBLIC_KEY_RE.search(pubkey.strip())
+    if not match:
+        return None
+    return f"{match.group(1)} {match.group(2)}"
+
+
 def _extract_authorized_key(settings: ExtensionSettings, proxy: Proxies) -> str | None:
     """
     Try to read the stored public key for this proxy from authorized_keys.
@@ -720,10 +732,9 @@ def _extract_authorized_key(settings: ExtensionSettings, proxy: Proxies) -> str 
             for line in f:
                 if marker not in line:
                     continue
-                parts = line.strip().split()
-                if len(parts) < 3 or parts[-1] != marker:
-                    continue
-                return " ".join(parts[1:-1])
+                normalized = _normalize_public_key(line)
+                if normalized:
+                    return normalized
     except Exception as exc:
         logger.error(
             f"reverse_proxy: failed to read authorized_key for {proxy.id}: {exc}"
@@ -735,7 +746,11 @@ def _add_authorized_key(settings: ExtensionSettings, proxy: Proxies, pubkey: str
     """
     Append a restricted SSH key for this proxy.
     """
-    if not pubkey:
+    normalized_pubkey = _normalize_public_key(pubkey)
+    if not normalized_pubkey:
+        logger.warning(
+            f"reverse_proxy: skipping invalid authorized_key payload for proxy {proxy.id}"
+        )
         return
     ak_path = _authorized_keys_path(settings)
     os.makedirs(os.path.dirname(ak_path), exist_ok=True)
@@ -745,7 +760,7 @@ def _add_authorized_key(settings: ExtensionSettings, proxy: Proxies, pubkey: str
         f'permitopen="127.0.0.1:{proxy.remote_port}",'
         f'command="echo {marker}"'
     )
-    line = f"{options} {pubkey} {marker}"
+    line = f"{options} {normalized_pubkey} {marker}"
     try:
         existing = []
         if os.path.exists(ak_path):

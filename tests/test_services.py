@@ -1,7 +1,13 @@
 from datetime import datetime, timedelta, timezone
 
 from ..models import Proxies
-from ..services import _add_authorized_key, _remove_existing_caddy_block, _select_canonical_proxies
+from ..services import (
+    _add_authorized_key,
+    _extract_authorized_key,
+    _normalize_public_key,
+    _remove_existing_caddy_block,
+    _select_canonical_proxies,
+)
 
 
 def _proxy(proxy_id: str, subdomain: str, remote_port: int, *, expires_offset_days: int = 1) -> Proxies:
@@ -81,3 +87,44 @@ def test_add_authorized_key_replaces_existing_marker(tmp_path, monkeypatch):
     assert "AAAAOLD" not in content
     assert "AAAANEW" in content
     assert 'permitopen="127.0.0.1:12001"' in content
+
+
+def test_normalize_public_key_recovers_from_corrupted_authorized_keys_line():
+    corrupted = (
+        'no-pty,no-user-rc,no-X11-forwarding,no-agent-forwarding,'
+        'permitopen="127.0.0.1:10003",command="echo reverse_proxy:proxy-1" '
+        'reverse_proxy:proxy-1" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey '
+        "reverse_proxy proxy-1 reverse_proxy:proxy-1"
+    )
+
+    assert (
+        _normalize_public_key(corrupted)
+        == "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey"
+    )
+
+
+def test_extract_authorized_key_reads_corrupted_line(tmp_path, monkeypatch):
+    ssh_dir = tmp_path / "home" / "tunneluser" / ".ssh"
+    ssh_dir.mkdir(parents=True)
+    authorized_keys = ssh_dir / "authorized_keys"
+    authorized_keys.write_text(
+        (
+            'no-pty,no-user-rc,no-X11-forwarding,no-agent-forwarding,'
+            'permitopen="127.0.0.1:10003",command="echo reverse_proxy:proxy-1" '
+            'reverse_proxy:proxy-1" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey '
+            "reverse_proxy proxy-1 reverse_proxy:proxy-1\n"
+        ),
+        encoding="utf-8",
+    )
+
+    from .. import services
+
+    monkeypatch.setattr(services, "_authorized_keys_path", lambda settings: str(authorized_keys))
+
+    settings = type("Settings", (), {"ssh_user": "tunneluser"})()
+    proxy = _proxy("proxy-1", "same-host", 12001)
+
+    assert (
+        _extract_authorized_key(settings, proxy)
+        == "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey"
+    )
