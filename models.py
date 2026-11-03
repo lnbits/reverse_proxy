@@ -7,15 +7,15 @@ from pydantic import BaseModel, Field
 
 
 class ExtensionSettings(BaseModel):
-    wallet: str
-    public_id: str | None
+    wallet: str = ""
+    public_id: str | None = None
     domain: str = "lnbitsproxy.com"
     ssh_user: str = "tunneluser"
     ssh_host: str = "lnbitsproxy.com"
     caddy_tunnels_file: str = "/etc/caddy/tunnels.caddy"
     remote_port_min: int = 12000
     remote_port_max: int = 13000
-    price_per_day_sats: int = 100
+    price_per_day_sats: int = Field(default=100, gt=0)
 
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -79,8 +79,8 @@ class ProxiesFilters(FilterModel):
         "updated_at",
     ]
 
-    created_at: datetime | None
-    updated_at: datetime | None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 ################################# Payments ###########################
@@ -132,8 +132,8 @@ class PaymentsFilters(FilterModel):
         "updated_at",
     ]
 
-    created_at: datetime | None
-    updated_at: datetime | None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 ########################### Tunnel Request/Response ############################

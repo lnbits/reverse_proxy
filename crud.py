@@ -20,7 +20,7 @@ db = Database("ext_reverse_proxy")
 
 ############################ Settings #############################
 async def create_extension_settings(user_id: str, data: ExtensionSettings) -> ExtensionSettings:
-    settings = UserExtensionSettings(**data.dict(), id=user_id)
+    settings = UserExtensionSettings(**data.model_dump(), id=user_id)
     settings.public_id = urlsafe_short_hash()
     await db.insert("reverse_proxy.extension_settings", settings)
     return settings
@@ -53,7 +53,7 @@ async def get_extension_settings_public(
 
 
 async def update_extension_settings(user_id: str, data: ExtensionSettings) -> ExtensionSettings:
-    settings = UserExtensionSettings(**data.dict(), id=user_id)
+    settings = UserExtensionSettings(**data.model_dump(), id=user_id)
     await db.update("reverse_proxy.extension_settings", settings)
     return settings
 
@@ -72,7 +72,7 @@ async def create_proxies(
     proxies_id: str | None = None,
 ) -> Proxies:
     proxy_id = proxies_id or urlsafe_short_hash()
-    proxies = Proxies(**data.dict(), id=proxy_id, user_id=user_id)
+    proxies = Proxies(**data.model_dump(), id=proxy_id, user_id=user_id)
     await db.insert("reverse_proxy.proxies", proxies)
     return proxies
 
@@ -137,7 +137,7 @@ async def get_active_or_pending_proxy_by_subdomain(
     return await db.fetchone(
         """
             SELECT * FROM reverse_proxy.proxies
-            WHERE subdomain = :subdomain AND status IN ('active', 'pending')
+            WHERE subdomain = :subdomain
             ORDER BY updated_at DESC
             LIMIT 1
         """,
@@ -203,7 +203,7 @@ async def create_payments(
     payments_id: str | None = None,
 ) -> Payments:
     new_payments_id = payments_id or urlsafe_short_hash()
-    payments = Payments(**data.dict(), id=new_payments_id, proxies_id=proxies_id)
+    payments = Payments(**data.model_dump(), id=new_payments_id, proxies_id=proxies_id)
     await db.insert("reverse_proxy.payments", payments)
     return payments
 

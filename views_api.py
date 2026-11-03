@@ -5,7 +5,7 @@ from fastapi.exceptions import HTTPException
 from lnbits.core.models import SimpleStatus, User
 from lnbits.db import Filters, Page
 from lnbits.decorators import (
-    check_user_exists,
+    check_super_user,
     parse_filters,
 )
 from lnbits.helpers import generate_filter_params_openapi
@@ -19,6 +19,7 @@ from .crud import (
     get_payments_paginated,
     get_proxies,
     get_proxies_by_client_note,
+    get_proxies_by_id,
     get_proxies_ids_by_user,
     get_proxies_paginated,
     update_payments,
@@ -43,6 +44,7 @@ from .services import (
     delete_proxy_and_key,
     get_settings,
     payment_request_for_payments,
+    tunnel_payment_status,
     update_settings,
 )
 
@@ -61,7 +63,7 @@ reverse_proxy_api_router = APIRouter()
     response_model=ExtensionSettings,
 )
 async def api_get_settings(
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
 ) -> ExtensionSettings:
     user_id = "admin" if ExtensionSettings.is_admin_only() else user.id
     return await get_settings(user_id)
@@ -76,7 +78,7 @@ async def api_get_settings(
 )
 async def api_update_extension_settings(
     data: ExtensionSettings,
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
 ) -> ExtensionSettings:
     if ExtensionSettings.is_admin_only() and not user.admin:
         raise HTTPException(
@@ -91,7 +93,7 @@ async def api_update_extension_settings(
 @reverse_proxy_api_router.post("/api/v1/proxies", status_code=HTTPStatus.CREATED)
 async def api_create_proxies(
     data: CreateProxies,
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
 ) -> Proxies:
     proxies = await create_proxies(user.id, data)
     return proxies
@@ -104,14 +106,14 @@ async def api_create_proxies(
 async def api_update_proxies(
     proxies_id: str,
     data: CreateProxies,
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
 ) -> Proxies:
     proxies = await get_proxies(user.id, proxies_id)
     if not proxies:
         raise HTTPException(HTTPStatus.NOT_FOUND, "Proxies not found.")
     if proxies.user_id != user.id:
         raise HTTPException(HTTPStatus.FORBIDDEN, "You do not own this proxies.")
-    proxies = await update_proxies(Proxies(**{**proxies.dict(), **data.dict()}))
+    proxies = await update_proxies(Proxies(**{**proxies.model_dump(), **data.model_dump()}))
     return proxies
 
 
@@ -124,7 +126,7 @@ async def api_update_proxies(
     response_model=Page[Proxies],
 )
 async def api_get_proxies_paginated(
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
     filters: Filters = Depends(proxies_filters),
 ) -> Page[Proxies]:
     return await get_proxies_paginated(
@@ -142,7 +144,7 @@ async def api_get_proxies_paginated(
 )
 async def api_get_proxies(
     proxies_id: str,
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
 ) -> Proxies:
     proxies = await get_proxies(user.id, proxies_id)
     if not proxies:
@@ -160,7 +162,7 @@ async def api_get_proxies(
 async def api_delete_proxies(
     proxies_id: str,
     clear_payments: bool | None = False,
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
 ) -> SimpleStatus:
     settings = await get_settings(user.id)
     await delete_proxy_and_key(user.id, proxies_id, settings)
@@ -182,7 +184,7 @@ async def api_delete_proxies(
 async def api_create_payments(
     proxies_id: str,
     data: CreatePayments,
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
 ) -> Payments:
     proxies = await get_proxies(user.id, proxies_id)
     if not proxies:
@@ -207,6 +209,8 @@ async def api_submit_public_payments(
     PUBLIC: clients can use this to top up / extend an existing proxy.
     Uses days to compute the amount server-side.
     """
+    if not await get_proxies_by_id(proxies_id):
+        raise HTTPException(HTTPStatus.NOT_FOUND, "Tunnel not found.")
     return await payment_request_for_payments(proxies_id, data)
 
 
@@ -250,7 +254,7 @@ async def api_get_tunnels_by_client_note(client_note: str) -> list[PublicTunnel]
 async def api_update_payments(
     payments_id: str,
     data: CreatePayments,
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
 ) -> Payments:
     payments = await get_payments_by_id(payments_id)
     if not payments:
@@ -260,7 +264,7 @@ async def api_update_payments(
     if not proxies:
         raise HTTPException(HTTPStatus.NOT_FOUND, "Proxies not found.")
 
-    payments = await update_payments(Payments(**{**payments.dict(), **data.dict()}))
+    payments = await update_payments(Payments(**{**payments.model_dump(), **data.model_dump()}))
     return payments
 
 
@@ -273,7 +277,7 @@ async def api_update_payments(
     response_model=Page[Payments],
 )
 async def api_get_payments_paginated(
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
     proxies_id: str | None = None,
     filters: Filters = Depends(payments_filters),
 ) -> Page[Payments]:
@@ -299,7 +303,7 @@ async def api_get_payments_paginated(
 )
 async def api_get_payments(
     payments_id: str,
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
 ) -> Payments:
     payments = await get_payments_by_id(payments_id)
     if not payments:
@@ -319,7 +323,7 @@ async def api_get_payments(
 )
 async def api_delete_payments(
     payments_id: str,
-    user: User = Depends(check_user_exists),
+    user: User = Depends(check_super_user),
 ) -> SimpleStatus:
     payments = await get_payments_by_id(payments_id)
     if not payments:
@@ -354,3 +358,11 @@ async def api_create_tunnel_public(
         settings=the_settings,
         extra={"tag": "reverse_proxy"},
     )
+
+
+@reverse_proxy_api_router.get("/api/v1/tunnels/{tunnel_id}/status")
+async def api_tunnel_payment_status(tunnel_id: str, payment_hash: str) -> dict:
+    result = await tunnel_payment_status(tunnel_id, payment_hash)
+    if result is None:
+        raise HTTPException(HTTPStatus.NOT_FOUND, "Tunnel invoice not found.")
+    return result

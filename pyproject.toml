@@ -1,16 +1,20 @@
 [project]
 name = "reverse_proxy"
-version = "0.0.4"
-requires-python = ">=3.10,<3.13"
+version = "0.1.0"
+requires-python = ">=3.10,<3.14"
 description = "<<Internal extension for allowing ssh tunnels>>"
 authors = []
 urls = { Homepage = "https://lnbits.com", Repository = "https://github.com/lnbits/tpos" }
-dependencies = [ "lnbits>1" ]
+dependencies = [ "lnbits>=1.7.0rc1" ]
 
 [tool.poetry]
 package-mode = false
 
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+
 [tool.uv]
+build-constraint-dependencies = ["scikit-build-core<0.10"]
 dev-dependencies = [
     "black>=24.3.0",
     "pytest-asyncio>=0.21.0",
@@ -33,6 +37,7 @@ ignore_missing_imports = "True"
 
 [tool.pytest.ini_options]
 log_cli = false
+filterwarnings = ["error::pydantic.warnings.PydanticDeprecationWarning"]
 testpaths = [
   "tests"
 ]

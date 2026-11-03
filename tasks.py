@@ -1,10 +1,11 @@
 import asyncio
 
+from lnbits.core.crud import get_standalone_payment
 from lnbits.core.models import Payment
-from lnbits.tasks import register_invoice_listener, run_interval
+from lnbits.tasks import register_invoice_listener
 from loguru import logger
 
-from .crud import get_all_extension_settings
+from .crud import db, get_all_extension_settings
 from .services import (
     cleanup_expired_proxies_and_sync_caddy,
     payment_received_for_payments,
@@ -33,6 +34,15 @@ async def on_invoice_paid(payment: Payment) -> None:
 
 
 async def _cleanup_all_tunnels_once():
+    # Recover events missed during restart or failed provisioning.
+    rows = await db.fetchall("SELECT invoice_id FROM reverse_proxy.payments WHERE paid = false AND invoice_id != ''")
+    for row in rows:
+        try:
+            payment = await get_standalone_payment(row["invoice_id"], incoming=True)
+            if payment and payment.success:
+                await payment_received_for_payments(payment)
+        except Exception as exc:
+            logger.error(f"reverse_proxy: payment recovery failed: {exc}")
     settings_list = await get_all_extension_settings()
     for settings in settings_list:
         try:
@@ -41,5 +51,11 @@ async def _cleanup_all_tunnels_once():
             logger.error(f"reverse_proxy: cleanup failed for user {settings.id}: {exc}")
 
 
-# Runs every hour while the app is running
-cleanup_tunnels_hourly = run_interval(3600, _cleanup_all_tunnels_once)
+async def cleanup_tunnels_hourly():
+    # Run immediately on startup and retry provisioning failures within a minute.
+    while True:
+        try:
+            await _cleanup_all_tunnels_once()
+        except Exception as exc:
+            logger.error(f"reverse_proxy: reconciliation failed: {exc}")
+        await asyncio.sleep(60)

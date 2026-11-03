@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from ..models import Proxies
+from ..models import ExtensionSettings, Proxies
 from ..services import (
     _add_authorized_key,
     _extract_authorized_key,
@@ -79,14 +79,15 @@ def test_add_authorized_key_replaces_existing_marker(tmp_path, monkeypatch):
 
     monkeypatch.setattr(services, "_authorized_keys_path", lambda settings: str(authorized_keys))
 
-    settings = type("Settings", (), {"ssh_user": "tunneluser"})()
+    settings = ExtensionSettings(ssh_user="tunneluser")
     proxy = _proxy("proxy-1", "same-host", 12001)
     _add_authorized_key(settings, proxy, "ssh-ed25519 AAAANEW")
 
     content = authorized_keys.read_text(encoding="utf-8")
     assert "AAAAOLD" not in content
     assert "AAAANEW" in content
-    assert 'permitopen="127.0.0.1:12001"' in content
+    assert 'permitlisten="127.0.0.1:12001"' in content
+    assert 'permitlisten="localhost:12001"' in content
 
 
 def test_normalize_public_key_recovers_from_corrupted_authorized_keys_line():
@@ -118,7 +119,32 @@ def test_extract_authorized_key_reads_corrupted_line(tmp_path, monkeypatch):
 
     monkeypatch.setattr(services, "_authorized_keys_path", lambda settings: str(authorized_keys))
 
-    settings = type("Settings", (), {"ssh_user": "tunneluser"})()
+    settings = ExtensionSettings(ssh_user="tunneluser")
     proxy = _proxy("proxy-1", "same-host", 12001)
 
     assert _extract_authorized_key(settings, proxy) == "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey"
+
+
+def test_key_markers_do_not_match_other_ids_with_same_prefix(tmp_path, monkeypatch):
+    from .. import services
+
+    path = tmp_path / "authorized_keys"
+    path.write_text("ssh-ed25519 AAAAother reverse_proxy:proxy-10\n")
+    monkeypatch.setattr(services, "_authorized_keys_path", lambda _: str(path))
+    settings = ExtensionSettings(ssh_user="tunneluser")
+    proxy = _proxy("proxy-1", "host", 12000)
+    services._add_authorized_key(settings, proxy, "ssh-ed25519 AAAAnew")
+    services._remove_authorized_key(settings, proxy)
+    assert path.read_text() == "ssh-ed25519 AAAAother reverse_proxy:proxy-10\n"
+
+
+def test_atomic_file_edits_preserve_concurrent_updates(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from ..files import edit_file
+
+    path = str(tmp_path / "authorized_keys")
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda i: edit_file(path, lambda content: content + f"key-{i}\n"), range(24)))
+    with open(path) as output:
+        assert set(output.read().splitlines()) == {f"key-{i}" for i in range(24)}
